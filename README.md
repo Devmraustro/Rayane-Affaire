@@ -36,6 +36,7 @@ Site public bilingue (français / العربية), back-office authentifié, bas
 | `/vehicles/[slug]` | Fiche détaillée, équipements, contact |
 | `/map` | Carte Leaflet : marqueurs uniquement pour les positions vérifiées, légende de précision, compteur de biens non localisables |
 | `/services`, `/about`, `/contact` | Pages éditoriales, coordonnées issues de la configuration |
+| `/credits` | Crédits et sources : attribution OpenStreetMap/ODbL, origine des photographies, statut des visuels de marque |
 
 - **Bilingue** : français par défaut (LTR), arabe (RTL) rendu côté serveur via le
   cookie `ra_locale`; la préférence est persistée et s'applique aussi au back-office.

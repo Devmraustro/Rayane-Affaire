@@ -228,7 +228,7 @@ prochain conteneur.
 
 À exécuter dans l'ordre, et à documenter (date, résultat) :
 
-1. `npm run smoke -- https://rayane-affaire.dz` ⇒ 13/13.
+1. `npm run smoke -- https://rayane-affaire.dz` ⇒ 14/14.
 2. Ouvrir `/` en français puis basculer en arabe : la direction passe bien en RTL.
 3. Se connecter à `/admin` avec le compte créé, puis se déconnecter.
 4. Créer une annonce **de test**, téléverser une photo, publier, vérifier la

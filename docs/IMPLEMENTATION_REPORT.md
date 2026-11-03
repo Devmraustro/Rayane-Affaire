@@ -203,7 +203,7 @@ Toutes les commandes ci-dessous ont été exécutées sur ce dépôt, à ce comm
 | `npm run lint` | `✔ No ESLint warnings or errors` |
 | `npm test` | `Test Files 7 passed (7)` / `Tests 131 passed (131)` |
 | `npm run build` | `✓ Compiled successfully`, `✓ Generating static pages (18/18)` |
-| `npm run smoke -- http://localhost:3000` | `All checks passed.` (12 routes + contrôle des numéros factices) |
+| `npm run smoke -- http://localhost:3000` | `All checks passed.` (13 routes + contrôle des numéros factices) |
 | Parcours admin via `curl` | connexion 200, `/admin` 307 sans session, 9 pages admin 200 avec session, création `RA-P-0001`, `422 MEDIA_REQUIRED` sans photo, upload 200, publication 200, fiche publique 200 |
 
 Détail et sorties : `docs/TESTING_REPORT.md`.

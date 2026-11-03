@@ -10,7 +10,16 @@ import { defaultVehicleFilters } from '@/lib/db/vehicles';
  * listed (demonstration rows are excluded from indexing).
  */
 export default function sitemap(): MetadataRoute.Sitemap {
-  const staticRoutes = ['', '/properties', '/vehicles', '/map', '/services', '/about', '/contact'].map(
+  const staticRoutes = [
+    '',
+    '/properties',
+    '/vehicles',
+    '/map',
+    '/services',
+    '/about',
+    '/contact',
+    '/credits',
+  ].map(
     (path) => ({
       url: `${SITE_URL}${path}`,
       changeFrequency: 'weekly' as const,

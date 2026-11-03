@@ -379,6 +379,24 @@ export const fr = {
     forbidden: 'Vous n’avez pas les droits nécessaires.',
   },
 
+  credits: {
+    title: 'Crédits et sources',
+    subtitle:
+      'Provenance des données, des images et des composants utilisés sur ce site.',
+    osmBody:
+      'Les fonds de carte et les contours administratifs proviennent d’OpenStreetMap, produits par sa communauté de contributeurs et distribués sous licence ODbL. Les coordonnées des communes affichées dans le site sont issues de ces données ; elles ne servent qu’à situer grossièrement une commune, jamais à localiser un bien précis.',
+    osmFix: 'Signaler une erreur sur la carte',
+    photosTitle: 'Photographies des annonces',
+    photosBody:
+      'Chaque photographie d’annonce est fournie par l’agence ou utilisée sous une licence vérifiée. Son auteur et sa licence sont enregistrés avec l’image et affichés sur la fiche concernée. Aucune image n’est présentée comme la photographie d’un bien précis sans que ce lien ne soit documenté.',
+    illustrationsTitle: 'Visuels de marque',
+    illustrationsBody:
+      'Les visuels affichés en l’absence de photographie sont des illustrations créées pour RAYANE AFFAIRE. Elles ne représentent aucun bien réel et portent la mention correspondante.',
+    dataTitle: 'Données du site',
+    dataBody:
+      'Les annonces, prix et disponibilités sont saisis et maintenus par l’agence. Une information qui n’a pas été vérifiée est signalée comme telle (par exemple une position approximative ou une commune non renseignée) plutôt que complétée par une valeur inventée.',
+  },
+
   footer: {
     tagline: 'Immobilier et véhicules dans la wilaya de Béjaïa.',
     navigation: 'Navigation',
@@ -387,6 +405,7 @@ export const fr = {
     rights: 'Tous droits réservés.',
     adminLink: 'Administration',
     sitemapLink: 'Plan du site',
+    creditsLink: 'Crédits et sources',
     coverage: 'Zone d’intervention',
     followUs: 'Nous suivre',
   },

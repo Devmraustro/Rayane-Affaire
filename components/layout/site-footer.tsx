@@ -168,6 +168,12 @@ export function SiteFooter({ communes }: { communes: Commune[] }) {
               <ShieldCheck aria-hidden="true" className="size-3.5" />
               {t.footer.adminLink}
             </Link>
+            <Link
+              href="/credits"
+              className="text-white/40 transition-colors hover:text-white/70"
+            >
+              {t.footer.creditsLink}
+            </Link>
             <Link href="/sitemap.xml" className="text-white/40 transition-colors hover:text-white/70">
               {t.footer.sitemapLink}
             </Link>

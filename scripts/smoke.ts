@@ -21,6 +21,7 @@ const checks: Check[] = [
   { path: '/services', expect: [200], label: 'Services' },
   { path: '/about', expect: [200], label: 'À propos' },
   { path: '/contact', expect: [200], label: 'Contact' },
+  { path: '/credits', expect: [200], label: 'Crédits' },
   { path: '/robots.txt', expect: [200], label: 'robots.txt' },
   { path: '/sitemap.xml', expect: [200], label: 'sitemap.xml' },
   { path: '/admin', expect: [307, 308], label: 'Admin (protégé)' },

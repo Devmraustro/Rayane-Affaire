@@ -16,7 +16,7 @@ Dernière exécution : 3 novembre 2026.
 | Lint | `npm run lint` (`next lint`) | ✅ **0 avertissement, 0 erreur** |
 | Tests | `npm test` (`vitest run`) | ✅ **131 tests / 131 réussis**, 7 fichiers, ~4 s |
 | Build de production | `npm run build` | ✅ **compilé, 18 pages générées**, aucune erreur |
-| Vérifications HTTP | `npm run smoke` | ✅ **13/13** (12 routes + absence de numéro factice) |
+| Vérifications HTTP | `npm run smoke` | ✅ **14/14** (13 routes + absence de numéro factice) |
 | Parcours admin réel | `curl` (connexion → CRUD → upload → publication) | ✅ voir §6 |
 
 Aucun test n'est désactivé, ignoré (`skip`) ou marqué `todo`. Aucune couverture
@@ -76,7 +76,7 @@ Exécutées avec `curl` contre `npx next dev` sur le port 3000.
 /                    200      /map        200      /robots.txt    200
 /properties          200      /services   200      /sitemap.xml   200
 /vehicles            200      /about      200      /inconnue      404
-                              /contact    200
+                              /contact    200      /credits       200
 ```
 
 ### RTL et contenu
