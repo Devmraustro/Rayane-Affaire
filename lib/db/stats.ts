@@ -1,5 +1,7 @@
 import '@/lib/server/guard';
 import { getDb } from '@/db/client';
+import { isVehicleRentalEnabled } from './settings';
+import { RENTABLE_DEAL_TYPES } from '@/lib/settings';
 
 /**
  * Statistics — ALWAYS derived from the database, never fabricated.
@@ -26,15 +28,34 @@ export interface PublicStats {
 export function getPublicStats(): PublicStats {
   const db = getDb();
 
+  // Public statistics must not count inventory the catalogue hides. When the
+  // rental service is switched off, rentable vehicles drop out of every figure
+  // below (properties are never affected).
+  const rentalEnabled = isVehicleRentalEnabled();
+  const rentalScope = {
+    sql: () =>
+      rentalEnabled
+        ? ''
+        : ` AND deal_type NOT IN (${RENTABLE_DEAL_TYPES.map(() => '?').join(',')})`,
+    params: (): string[] => (rentalEnabled ? [] : [...RENTABLE_DEAL_TYPES]),
+  };
+
   const publishedProperties = (
     db
       .prepare(`SELECT COUNT(*) AS n FROM properties WHERE status = 'published' AND is_demo = 0`)
       .get() as { n: number }
   ).n;
+  // Count only what the public can actually reach: when the agency has no
+  // rental service, rentable vehicles are excluded here too, otherwise the
+  // homepage would advertise inventory the catalogue refuses to show.
+  const visitableVehicles = rentalScope.sql();
+  const visitableParams = rentalScope.params();
   const publishedVehicles = (
     db
-      .prepare(`SELECT COUNT(*) AS n FROM vehicles WHERE status = 'published' AND is_demo = 0`)
-      .get() as { n: number }
+      .prepare(
+        `SELECT COUNT(*) AS n FROM vehicles WHERE status = 'published' AND is_demo = 0${visitableVehicles}`,
+      )
+      .get(...visitableParams) as { n: number }
   ).n;
   // Only communes that actually have at least one published real listing.
   const coveredCommunes = (
@@ -43,20 +64,20 @@ export function getPublicStats(): PublicStats {
         `SELECT COUNT(DISTINCT commune_id) AS n FROM (
            SELECT commune_id FROM properties WHERE status = 'published' AND is_demo = 0
            UNION
-           SELECT commune_id FROM vehicles WHERE status = 'published' AND is_demo = 0
+           SELECT commune_id FROM vehicles WHERE status = 'published' AND is_demo = 0${visitableVehicles}
          )`,
       )
-      .get() as { n: number }
+      .get(...visitableParams) as { n: number }
   ).n;
   const availableNow = (
     db
       .prepare(
         `SELECT (
            (SELECT COUNT(*) FROM properties WHERE status = 'published' AND is_demo = 0 AND availability_status = 'available')
-         + (SELECT COUNT(*) FROM vehicles   WHERE status = 'published' AND is_demo = 0 AND availability_status = 'available')
+         + (SELECT COUNT(*) FROM vehicles   WHERE status = 'published' AND is_demo = 0 AND availability_status = 'available'${visitableVehicles})
          ) AS n`,
       )
-      .get() as { n: number }
+      .get(...visitableParams) as { n: number }
   ).n;
 
   return {

@@ -41,7 +41,7 @@ permet donc pas de rejouer une session sans le secret serveur.
 | Hiérarchie de rôles | **Mis en œuvre** | `editor` (1) < `manager` (2) < `owner` (3). Écritures d'annonces : `editor` ; suppressions : `manager`. |
 | Vérification du compte à chaque requête | **Mis en œuvre** | `app/admin/layout.tsx` et chaque handler résolvent la session **en base** (pas seulement la présence d'un cookie). |
 | Contournement du middleware | **Atténué** | Le middleware ne fait qu'un contrôle de présence de cookie (redirection UX). Toute l'autorisation réelle est refaite côté serveur : supprimer le cookie ne donne aucun accès. |
-| Contrôle d'appartenance sur les médias | **Mis en œuvre** | `entityId` est validé syntaxiquement (UUID) **et** l'annonce doit exister (`404` sinon), ce qui empêche d'utiliser le téléversement comme stockage de fichiers orphelins. |
+| Vérification d'association des médias | **Mis en œuvre** | `entityId` est validé syntaxiquement (UUID) **et** l'annonce cible doit exister (`404` sinon), ce qui empêche d'utiliser le téléversement comme stockage de fichiers orphelins. **Ce n'est pas un contrôle de propriété par utilisateur** : il n'existe aucun modèle de propriété (aucune annonce n'appartient à un compte), et tout administrateur habilité peut attacher un média à n'importe quelle annonce. Un modèle de propriété par utilisateur serait une évolution distincte, non implémentée. |
 
 ---
 

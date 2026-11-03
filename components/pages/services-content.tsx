@@ -28,6 +28,7 @@ const CONTENT = {
       ],
     },
     {
+      kind: 'vehicleRental' as const,
       title: 'Location de véhicules',
       lede: 'Une flotte entretenue, livrée à l’adresse convenue.',
       points: [
@@ -70,6 +71,7 @@ const CONTENT = {
       ],
     },
     {
+      kind: 'vehicleRental' as const,
       title: 'كراء السيارات',
       lede: 'أسطول مُصان، يُسلَّم إلى العنوان المتفق عليه.',
       points: [
@@ -92,10 +94,14 @@ const CONTENT = {
   ],
 } as const;
 
-export function ServicesContent() {
+export function ServicesContent({ rentalEnabled = true }: { rentalEnabled?: boolean }) {
   const { t, locale, dir } = useI18n();
   const Arrow = dir === 'rtl' ? ArrowLeft : ArrowRight;
-  const items = CONTENT[locale];
+  // The vehicle-rental service is listed only when the agency actually offers it;
+  // the numbering is recomputed so the list never skips a number.
+  const items = CONTENT[locale].filter(
+    (item) => rentalEnabled || !('kind' in item && item.kind === 'vehicleRental'),
+  );
 
   return (
     <div className="container-page py-10 lg:py-14">

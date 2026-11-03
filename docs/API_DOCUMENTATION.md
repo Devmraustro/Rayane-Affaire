@@ -245,6 +245,51 @@ Rôle : `editor`.
 
 ---
 
+## Administration — paramètres
+
+### `PATCH /api/admin/settings`
+
+Rôle requis : **`manager`** minimum. Changer la visibilité de la location de
+véhicules retire une page publique : ce n'est pas une décision de rédaction.
+
+```json
+{ "vehicleRentalEnabled": false }
+```
+
+Réponse `200` :
+
+```json
+{ "ok": true, "data": { "vehicleRentalEnabled": false, "changed": true } }
+```
+
+| Champ | Règle |
+| --- | --- |
+| `vehicleRentalEnabled` | booléen strict |
+| objet | **strict** : toute clé inconnue est refusée (`422`), aucun réglage inventé n'est accepté |
+| corps | au moins une clé, sinon `422` |
+
+- `changed` vaut `false` quand la valeur soumise est identique à la valeur
+  stockée : aucune ligne d'audit n'est alors écrite.
+- l'audit enregistre `settings.update` avec la valeur **avant** et **après**.
+- erreurs : `401`, `403` (`FORBIDDEN` / `CSRF`), `400` (JSON illisible),
+  `422` (`admin.validation.invalidSetting`).
+
+Effet public immédiat de `vehicleRentalEnabled: false` — vérifié de bout en bout :
+
+| Surface | Comportement |
+| --- | --- |
+| Menu (en-tête, tiroir mobile, pied de page) | entrée « Véhicules » retirée |
+| `/vehicles` | reste accessible, devient un catalogue de vente (« Véhicules à vendre ») ; les annonces `rent` et `both` sont exclues |
+| `/vehicles/[slug]` | `404` pour une annonce `rent` ou `both` |
+| Une de la page d'accueil | bloc véhicules et CTA « Louer un véhicule » retirés |
+| Bandeau de chiffres | tuile « Véhicules publiés » retirée (pas de zéro trompeur) |
+| `/services` | carte « Location de véhicules » retirée |
+| `sitemap.xml` | `/vehicles` et les fiches véhicules retirés |
+| Back-office | **inchangé** : tout l'inventaire reste visible et modifiable |
+| Immobilier | **inchangé** dans les deux états |
+
+---
+
 ## Administration — médias
 
 ### `POST /api/admin/media`

@@ -170,7 +170,51 @@ PropertyPoint = { id, lat, lng, precision: 'exact' | 'approximate' | 'commune' }
 4. **Notifications** : un courriel ou message WhatsApp à chaque nouvelle demande
    (aujourd'hui la demande est uniquement persistée et visible dans `/admin`).
 
-## 9. Décisions et compromis
+## 9. Réglages opérationnels (visibilité de la location de véhicules)
+
+Certaines décisions ne relèvent pas du code mais de l'activité réelle de l'agence.
+Elles vivent dans la table `settings` et sont modifiables depuis
+`/admin/settings`, sans redéploiement.
+
+```
+settings.vehicle_rental_enabled = 'true' | 'false'   (défaut 'true')
+
+lib/settings.ts             définition + valeurs autorisées (sans import de base)
+lib/db/settings.ts          lecture/écriture (isVehicleRentalEnabled)
+/api/admin/settings  PATCH  manager + CSRF + validation stricte + audit
+components/admin/vehicle-rental-toggle.tsx   interface (role="switch")
+```
+
+Le drapeau est lu par `PublicShell` (une fois par page publique) et transmis aux
+menus, puis par chaque lecteur qui sert des véhicules :
+
+| Couche | Filtre appliqué quand la location est désactivée |
+| --- | --- |
+| `buildVehicleWhere` | `deal_type NOT IN ('rent','both')` — la vente n'est jamais filtrée |
+| `getVehicleBySlug` | même clause ⇒ `404` pour une annonce de location |
+| `listFeaturedVehicles` | même clause ⇒ pas de bloc « véhicules » en une |
+| `listSimilarVehicles` | même clause ⇒ pas de location suggérée |
+| `getPublicStats` | même clause ⇒ chiffres alignés sur le catalogue |
+| `sitemap.ts` | `/vehicles` et les fiches retirés |
+
+`RENTABLE_DEAL_TYPES` (`rent`, `both`) est la seule définition de « louable » :
+`both` compte comme louable puisqu'une telle annonce est proposée au moins en
+partie en location. Les lecteurs d'administration (`listAdminVehicles`,
+`getVehicleById`) ne filtrent pas : l'opérateur doit continuer à gérer tout son
+inventaire.
+
+### Piège à connaître : `loading.tsx` et les codes de statut
+
+Un `loading.tsx` place la route (et ses enfants) dans une frontière Suspense.
+La réponse commençant alors à être diffusée avant que `notFound()` ne soit levé,
+le statut reste **200** avec un corps « page introuvable » — un *soft 404*.
+Constaté sur `/vehicles/[slug]` et `/properties/[slug]` à cause du
+`loading.tsx` racine, puis du `loading.tsx` de segment. Conclusion appliquée :
+aucun `loading.tsx` sur un segment possédant un enfant dynamique qui appelle
+`notFound()` ; le squelette de chargement est conservé sur `/map`, route feuille.
+`npm run smoke` vérifie désormais explicitement ce comportement.
+
+## 10. Décisions et compromis
 
 | Décision | Compromis accepté |
 | --- | --- |

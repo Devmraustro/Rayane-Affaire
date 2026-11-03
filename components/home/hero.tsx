@@ -16,7 +16,14 @@ import type { Commune } from '@/types';
  * would misrepresent the agency's inventory) and is replaced by the owner's own
  * hero photograph through `NEXT_PUBLIC_HERO_IMAGE`.
  */
-export function Hero({ communes }: { communes: Commune[] }) {
+export function Hero({
+  communes,
+  rentalEnabled = true,
+}: {
+  communes: Commune[];
+  /** When false the secondary "rent a vehicle" call to action is omitted. */
+  rentalEnabled?: boolean;
+}) {
   const { t, locale } = useI18n();
   const Arrow = locale === 'ar' ? ArrowLeft : ArrowRight;
   const heroImage = process.env.NEXT_PUBLIC_HERO_IMAGE || '/images/fallback/hero.svg';
@@ -59,14 +66,16 @@ export function Hero({ communes }: { communes: Commune[] }) {
                 <Arrow aria-hidden="true" />
               </Link>
             </Button>
-            <Button
-              asChild
-              size="lg"
-              variant="outline"
-              className="border-white/25 bg-white/10 text-white backdrop-blur-sm hover:border-white/40 hover:bg-white/15 hover:text-white"
-            >
-              <Link href="/vehicles">{t.home.heroCtaSecondary}</Link>
-            </Button>
+            {rentalEnabled && (
+              <Button
+                asChild
+                size="lg"
+                variant="outline"
+                className="border-white/25 bg-white/10 text-white backdrop-blur-sm hover:border-white/40 hover:bg-white/15 hover:text-white"
+              >
+                <Link href="/vehicles">{t.home.heroCtaSecondary}</Link>
+              </Button>
+            )}
           </div>
 
           <p className="mt-6 inline-flex items-center gap-2 text-xs text-white/55">

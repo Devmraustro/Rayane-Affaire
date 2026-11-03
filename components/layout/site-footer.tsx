@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { MapPin, Phone, Mail, MessageCircle, ShieldCheck, Facebook, Instagram } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
-import { BRAND, PRIMARY_NAV } from '@/lib/brand';
+import { BRAND, primaryNavFor } from '@/lib/brand';
 import { Logo } from './logo';
 import {
   PHONE_NUMBER,
@@ -21,8 +21,16 @@ import type { Commune } from '@/types';
  * configured yet, an explicit notice is shown instead of placeholder digits —
  * the visitor must never dial a number that does not exist.
  */
-export function SiteFooter({ communes }: { communes: Commune[] }) {
+export function SiteFooter({
+  communes,
+  rentalEnabled = true,
+}: {
+  communes: Commune[];
+  /** When false, the vehicle section is omitted from the footer navigation. */
+  rentalEnabled?: boolean;
+}) {
   const { t, locale, pick } = useI18n();
+  const navItems = primaryNavFor({ rentalEnabled });
   const year = new Date().getFullYear();
   const hasContact = Boolean(PHONE_NUMBER || CONTACT_EMAIL || OFFICE_ADDRESS || WHATSAPP_NUMBER);
 
@@ -64,7 +72,7 @@ export function SiteFooter({ communes }: { communes: Commune[] }) {
               {t.footer.navigation}
             </h2>
             <ul className="mt-4 space-y-2.5">
-              {PRIMARY_NAV.map((item) => (
+              {navItems.map((item) => (
                 <li key={item.href}>
                   <Link
                     href={item.href}

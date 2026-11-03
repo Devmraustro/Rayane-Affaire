@@ -248,6 +248,11 @@ export const fr = {
   vehicles: {
     title: 'Véhicules',
     subtitle: 'Location et vente de véhicules à Béjaïa, avec ou sans chauffeur sur demande.',
+    // Used when the agency has no rental service: the catalogue is then a sale
+    // catalogue and must not advertise a rental offer that does not exist.
+    titleSaleOnly: 'Véhicules à vendre',
+    subtitleSaleOnly:
+      'Véhicules proposés à la vente à Béjaïa et dans les communes voisines.',
     filtersTitle: 'Filtrer les véhicules',
     category: 'Catégorie',
     transmission: 'Boîte de vitesses',
@@ -360,6 +365,9 @@ export const fr = {
     propertiesBody: 'Élargissez les critères ou réinitialisez les filtres.',
     vehiclesTitle: 'Aucun véhicule ne correspond à votre recherche',
     vehiclesBody: 'Essayez une autre catégorie ou réinitialisez les filtres.',
+    vehiclesSaleTitle: 'Aucun véhicule à vendre pour le moment',
+    vehiclesSaleBody:
+      'Notre offre de véhicules à la vente est en cours de constitution. Contactez-nous pour connaître les disponibilités.',
     catalogueTitle: 'Le catalogue est en préparation',
     catalogueBody:
       'Aucune annonce n’est encore publiée. Les biens et véhicules apparaîtront ici dès leur publication par l’agence.',
@@ -558,6 +566,7 @@ export const fr = {
         'Renseignez le texte alternatif de la photo en français et en arabe.',
       attributionRequired:
         'Renseignez le crédit (auteur) et la licence de la photo : une image sans droits documentés ne peut pas être publiée.',
+      invalidSetting: 'Ce réglage est inconnu ou possède une valeur invalide.',
     },
     inquiry: {
       detail: 'Détail de la demande',
@@ -595,6 +604,18 @@ export const fr = {
       demoRecords: 'Annonces de démonstration',
       demoRecordsNote:
         'Les annonces de démonstration sont identifiées dans l’interface publique et exclues des statistiques.',
+      vehicleRental: {
+        title: 'Location de véhicules',
+        body:
+          'Indiquez si l’agence propose réellement la location de véhicules (flotte propre ou partenaire). Lorsque cette option est désactivée, le menu, le catalogue, la une et le plan du site n’exposent plus aucune offre de location.',
+        on: 'Location activée',
+        off: 'Location désactivée',
+        onHint: 'Les véhicules à louer sont visibles sur le site public.',
+        offHint:
+          'Seuls les véhicules à vendre restent visibles. Les annonces de location sont masquées, sans être supprimées.',
+        saleUnaffected:
+          'La vente de véhicules et tout le catalogue immobilier ne sont pas concernés par ce réglage.',
+      },
     },
     seedWarning:
       'Les données de démonstration sont clairement identifiées et ne sont jamais présentées comme des biens réels.',

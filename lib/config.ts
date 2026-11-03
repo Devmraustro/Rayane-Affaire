@@ -73,6 +73,24 @@ export const STORAGE_KEYS = {
   favorites: 'ra.favorites',
 } as const;
 
+/**
+ * Rows in `settings`, seeded on migration.
+ *
+ * Keys are stable identifiers, never user-editable text: the admin UI can only
+ * flip values the application knows about, so a typo cannot create a phantom
+ * setting that silently does nothing.
+ */
+export const SETTINGS_KEYS = {
+  /**
+   * Whether the agency actually offers vehicle rental (own fleet or a partner).
+   *
+   * Default `true` preserves the pre-setting behaviour: the vehicle rental
+   * surface stays visible until an operator deliberately turns it off. Sale-only
+   * vehicle listings are unaffected either way.
+   */
+  vehicleRentalEnabled: 'vehicle_rental_enabled',
+} as const;
+
 /** Auth cookie names. */
 export const AUTH_COOKIE = 'ra_session';
 export const LOCALE_COOKIE = 'ra_locale';

@@ -19,6 +19,11 @@ const SERVICES = [
   { icon: LineChart, key: 'advisory' },
 ] as const;
 
+/**
+ * `vehicles` is the vehicle-rental card. It is filtered out when the agency has
+ * no rental service so the site never promises an offer that does not exist.
+ */
+
 const COPY = {
   fr: {
     rental: {
@@ -74,10 +79,11 @@ const COPY = {
   },
 } as const;
 
-export function ServicesSection() {
+export function ServicesSection({ rentalEnabled = true }: { rentalEnabled?: boolean }) {
   const { t, locale, dir } = useI18n();
   const copy = COPY[locale];
   const Arrow = dir === 'rtl' ? ArrowLeft : ArrowRight;
+  const services = rentalEnabled ? SERVICES : SERVICES.filter((item) => item.key !== 'vehicles');
 
   return (
     <section id="services" className="bg-white py-16 sm:py-20 lg:py-24">
@@ -91,7 +97,7 @@ export function ServicesSection() {
         />
 
         <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-5">
-          {SERVICES.map(({ icon: Icon, key }, index) => (
+          {services.map(({ icon: Icon, key }, index) => (
             <Reveal as="li" key={key} delay={index * 60}>
               <div className="group h-full rounded-2xl border border-sand-200 bg-sand-50/60 p-5 transition-colors hover:border-gold-300 hover:bg-white sm:p-6">
                 <span className="grid size-11 place-items-center rounded-xl bg-ink-900 text-gold-400 transition-transform duration-300 ease-premium group-hover:-translate-y-0.5">

@@ -27,7 +27,9 @@ Aucune information externe requise. Peut être traité sans le client.
 
 ### A2. Durcissement média (partiellement fait)
 
-Déjà en place : contrôle d'existence de l'annonce avant insertion (404 sinon),
+Déjà en place : contrôle d'existence de l'annonce avant insertion (404 sinon) —
+il s'agit bien d'une **vérification d'existence, pas d'un contrôle de propriété
+par utilisateur** (aucune notion de propriétaire n'existe dans le modèle) —,
 crédit/licence obligatoires côté serveur **et** côté interface, texte alternatif
 bilingue obligatoire, magie-bytes, quota, nommage UUID.
 
@@ -57,6 +59,11 @@ désactiver ou changer le rôle d'un compte. À construire dans
   mais l'interface ne l'expose pas).
 
 ### A5. Couverture de tests à compléter
+
+Déjà couvert depuis le dernier lot : le réglage de location de véhicules
+(`tests/vehicle-rental-setting.test.ts`, 21 tests) et l'endpoint
+`PATCH /api/admin/settings` (9 tests dans `tests/api.test.ts`), soit
+**161 tests au total**.
 
 - Tests de `lib/db/inquiries`, `reservations`, `customers` (création, mises à
   jour, filtres de période).

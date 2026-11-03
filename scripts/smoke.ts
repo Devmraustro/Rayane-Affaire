@@ -26,7 +26,11 @@ const checks: Check[] = [
   { path: '/sitemap.xml', expect: [200], label: 'sitemap.xml' },
   { path: '/admin', expect: [307, 308], label: 'Admin (protégé)' },
   { path: '/admin/login', expect: [200], label: 'Connexion admin' },
-  { path: '/route-inexistante', expect: [404], label: '404' },
+  { path: '/route-inexistante', expect: [404], label: 'Page 404' },
+  // Soft-404 guard: a missing listing detail must answer 404, not 200 with a
+  // "not found" body. A root `loading.tsx` used to break exactly this.
+  { path: '/properties/annonce-inexistante-verification', expect: [404], label: 'Bien absent' },
+  { path: '/vehicles/vehicule-inexistant-verification', expect: [404], label: 'Véhicule absent' },
 ];
 
 async function main(): Promise<void> {
@@ -43,6 +47,25 @@ async function main(): Promise<void> {
       failures += 1;
       console.log(`✘ ${check.label.padEnd(18)} ${check.path} → ${(error as Error).message}`);
     }
+  }
+
+  // The vehicle section must be either fully present or fully absent, depending
+  // on the setting — a menu link pointing at a catalogue that hides everything
+  // (or a catalogue reachable only by URL) would be a broken promise.
+  try {
+    const home = await (await fetch(`${base}/`)).text();
+    const navHasVehicles = /href="\/vehicles"/.test(home);
+    const vehiclesPage = await fetch(`${base}/vehicles`, { redirect: 'manual' });
+    // Reachable by URL either way (sale listings may exist), so assert the menu
+    // and the sitemap agree with each other.
+    const sitemap = await (await fetch(`${base}/sitemap.xml`)).text();
+    const sitemapHasVehicles = sitemap.includes('/vehicles');
+    if (navHasVehicles !== sitemapHasVehicles) failures += 1;
+    console.log(
+      `${navHasVehicles === sitemapHasVehicles ? '✔' : '✘'} ${'Location véhicules'.padEnd(18)} menu=${navHasVehicles ? 'visible' : 'masqué'} sitemap=${sitemapHasVehicles ? 'inclus' : 'exclu'} (catalogue ${vehiclesPage.status})`,
+    );
+  } catch {
+    failures += 1;
   }
 
   // A placeholder phone number must never reach production.

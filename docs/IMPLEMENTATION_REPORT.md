@@ -37,8 +37,8 @@ l'interface, avec une identité propre.
 | Base | SQLite via `node:sqlite` (Node ≥ 22.5, aucune compilation native) |
 | Validation | Zod (schémas partagés client/serveur) |
 | Carte | Leaflet + react-leaflet + markercluster, tuiles OpenStreetMap |
-| Tests | Vitest (7 fichiers, 131 tests) |
-| Volume produit | 144 fichiers TypeScript/TSX, dont 30 pages, 51 composants, 34 modules `lib/` |
+| Tests | Vitest (8 fichiers, 161 tests) |
+| Volume produit | 155 fichiers TypeScript/TSX : **27 routes de page** et **11 routes API** au build, 52 composants, 28 modules `lib/` |
 
 ### 2.2 Base de données (12 tables, 21 index)
 
@@ -69,6 +69,15 @@ Détail complet : `docs/DATABASE_SCHEMA.md`.
 | `/services`, `/about`, `/contact` | Pages éditoriales ; coordonnées lues dans l'environnement, bloc masqué + mention « à configurer » si absent |
 | `/robots.txt`, `/sitemap.xml` | Générés dynamiquement, `/admin` et `/api` exclus |
 
+### 2.3 bis Réglage de visibilité de la location de véhicules
+
+Contrôle réel (pas décoratif) permettant à l'agence d'indiquer si elle propose
+ou non la location de véhicules. Persisté dans `settings`, exposé par un
+interrupteur bilingue dans `/admin/settings`, appliqué à **toutes** les surfaces
+publiques (menu, catalogue, une, chiffres, services, sitemap) tout en laissant
+l'immobilier et la vente de véhicules intacts. Détail technique :
+`docs/ARCHITECTURE.md` §9 ; référence API : `docs/API_DOCUMENTATION.md`.
+
 ### 2.4 Back-office
 
 Tous les modules du périmètre de référence ont été portés **avec une logique
@@ -81,6 +90,7 @@ réelle** :
 | Biens (liste, création, édition) | ✅ | Filtres statut/recherche/démo/géo, actions de statut en ligne |
 | Véhicules (liste, création, édition) | ✅ | Idem |
 | Médias (upload, suppression) | ✅ | Magic bytes, quota, crédit + licence + alt bilingue exigés côté serveur et côté interface |
+| Paramètres — location de véhicules | ✅ | Interrupteur bilingue persisté, rôle manager, CSRF, audit avec valeur avant/après |
 | Demandes de contact | ✅ | File de travail maître/détail, statuts, notes internes |
 | Clients | ✅ | Alimenté par les réservations réelles |
 | Réservations | ✅ | Montants, acomptes, statuts |
@@ -187,7 +197,22 @@ Problèmes réels rencontrés et corrigés (utiles au prochain intervenant) :
    (`45 000 DA` / `45 000 دج`), en chiffres latins.
 5. **Libellé vide** : `labels.priceUnit.total` était une chaîne vide ; remplacé
    par « au total » / « إجمالاً ».
-6. **Sessions non testables** : `createSession` dépendait de `next/headers`.
+6. **`loading.tsx` racine ⇒ soft 404** : toute page introuvable répondait `200`
+   avec le corps « page introuvable ». Cause isolée par bissection : une frontière
+   Suspense (`loading.tsx`) diffuse la réponse avant que `notFound()` ne puisse
+   fixer le statut. Déplacé sur `/map` uniquement (route feuille) ; `/vehicles`
+   et `/properties` n'en ont plus. Vérifié sur le serveur de production :
+   `404` pour une fiche absente, `200` pour une fiche réelle. `npm run smoke` le
+   contrôle désormais.
+7. **Boucle de redirection sur `/admin/login`** : `app/admin/layout.tsx` protège
+   toutes les routes `/admin`, y compris la page de connexion — un visiteur
+   déconnecté était redirigé indéfiniment vers `/admin/login` (307 en boucle) et
+   ne pouvait donc **pas se connecter**. Le layout exempte maintenant
+   `/admin/login` (chemin transmis par le middleware dans `x-pathname`) ; la page
+   de connexion conserve sa propre redirection inverse (déjà connecté → tableau de
+   bord). Vérifié : `/admin/login` `200`, `/admin` `307` avec `next=`, connexion
+   puis 9 pages admin `200`.
+8. **Sessions non testables** : `createSession` dépendait de `next/headers`.
    Scindé en `issueSession` (logique pure) + `serializeSessionCookies` (transport),
    ce qui permet de tester l'authentification réelle sans simulacre.
 
@@ -201,9 +226,9 @@ Toutes les commandes ci-dessous ont été exécutées sur ce dépôt, à ce comm
 | --- | --- |
 | `npx tsc --noEmit` | aucune sortie ⇒ 0 erreur |
 | `npm run lint` | `✔ No ESLint warnings or errors` |
-| `npm test` | `Test Files 7 passed (7)` / `Tests 131 passed (131)` |
-| `npm run build` | `✓ Compiled successfully`, `✓ Generating static pages (19/19)`, 36 entrées de route + middleware |
-| `npm run smoke -- http://localhost:3000` | `All checks passed.` (13 routes + contrôle des numéros factices) |
+| `npm test` | `Test Files 8 passed (8)` / `Tests 161 passed (161)` |
+| `npm run build` | `✓ Compiled successfully`, `✓ Generating static pages (19/19)`, 20 pages statiques, 38 entrées de route + middleware, JS partagé 103 kB |
+| `npm run smoke -- http://localhost:3000` | `All checks passed.` — 17/17, sur un serveur de production au repos (15 contrôles de route + 2 assertions HTML) |
 | Parcours admin via `curl` | connexion 200, `/admin` 307 sans session, 9 pages admin 200 avec session, création `RA-P-0001`, `422 MEDIA_REQUIRED` sans photo, upload 200, publication 200, fiche publique 200 |
 
 Détail et sorties : `docs/TESTING_REPORT.md`.

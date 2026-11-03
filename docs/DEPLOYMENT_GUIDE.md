@@ -228,7 +228,12 @@ prochain conteneur.
 
 À exécuter dans l'ordre, et à documenter (date, résultat) :
 
-1. `npm run smoke -- https://rayane-affaire.dz` ⇒ 14/14.
+1. `npm run smoke -- https://rayane-affaire.dz` ⇒ **17/17**. Le script est en
+   lecture seule : il ne modifie ni la base ni les fichiers. Il vérifie les 8
+   pages publiques, `robots.txt`, `sitemap.xml`, la protection de `/admin`, la
+   disponibilité de `/admin/login`, trois `404` (dont deux fiches absentes, garde
+   contre les *soft 404*), la cohérence menu ↔ `sitemap` et l'absence de numéro
+   factice. **Lancer contre un serveur au repos**, jamais pendant un `build`.
 2. Ouvrir `/` en français puis basculer en arabe : la direction passe bien en RTL.
 3. Se connecter à `/admin` avec le compte créé, puis se déconnecter.
 4. Créer une annonce **de test**, téléverser une photo, publier, vérifier la
@@ -291,6 +296,18 @@ npm run smoke -- https://rayane-affaire.dz
 
 Sauvegarder **avant** chaque migration. Ne jamais modifier un fichier de
 migration déjà appliqué.
+
+### Migrations existantes
+
+| Fichier | Contenu | Rejouable |
+| --- | --- | --- |
+| `db/migrations/001_vehicle_rental_setting.sql` | insère `vehicle_rental_enabled = 'true'` dans `settings` | Oui — `INSERT … ON CONFLICT DO NOTHING`, un choix déjà enregistré n'est jamais écrasé |
+
+Cette migration **ne change aucun comportement** : la location reste active par
+défaut, exactement comme avant son existence. Après déploiement, le réglage se
+pilote depuis `/admin/settings` (rôle `manager` minimum) ; le changement est
+immédiat côté public, mais le cache CDN éventuel doit être purgé si l'hébergeur
+en ajoute un devant l'application.
 
 ---
 

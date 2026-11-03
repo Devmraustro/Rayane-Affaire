@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { Menu, X, Phone, ShieldCheck, MessageCircle } from 'lucide-react';
 import { Logo } from './logo';
 import { LanguageToggle } from './language-toggle';
-import { PRIMARY_NAV } from '@/lib/brand';
+import { primaryNavFor } from '@/lib/brand';
 import { useI18n } from '@/lib/i18n';
 import { PHONE_NUMBER, WHATSAPP_NUMBER } from '@/lib/config';
 import { Button } from '@/components/ui/button';
@@ -19,8 +19,16 @@ import { cn } from '@/lib/utils';
  * always visible (it is an operational requirement for the agency), but it is
  * a quiet, secondary affordance — never competing with the primary CTAs.
  */
-export function SiteHeader({ transparentOnTop = false }: { transparentOnTop?: boolean }) {
+export function SiteHeader({
+  transparentOnTop = false,
+  rentalEnabled = true,
+}: {
+  transparentOnTop?: boolean;
+  /** When false, the vehicle section is removed from every menu. */
+  rentalEnabled?: boolean;
+}) {
   const { t, locale } = useI18n();
+  const navItems = React.useMemo(() => primaryNavFor({ rentalEnabled }), [rentalEnabled]);
   const pathname = usePathname();
   const [open, setOpen] = React.useState(false);
   const [scrolled, setScrolled] = React.useState(false);
@@ -71,7 +79,7 @@ export function SiteHeader({ transparentOnTop = false }: { transparentOnTop?: bo
           </Link>
 
           <nav aria-label={t.nav.menu} className="hidden items-center gap-1 lg:flex">
-            {PRIMARY_NAV.map((item) => {
+            {navItems.map((item) => {
               const active = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
               return (
                 <Link
@@ -164,7 +172,7 @@ export function SiteHeader({ transparentOnTop = false }: { transparentOnTop?: bo
         />
         <div className="absolute inset-x-0 top-16 max-h-[calc(100dvh-4rem)] overflow-y-auto border-b border-sand-200 bg-white p-5 shadow-panel animate-slide-down">
           <nav aria-label={t.nav.menu} className="flex flex-col">
-            {PRIMARY_NAV.map((item) => {
+            {navItems.map((item) => {
               const active = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
               return (
                 <Link

@@ -3,6 +3,7 @@ import { CheckCircle2, AlertTriangle, ShieldCheck, Database, FlaskConical } from
 import { listCommunes } from '@/lib/db/communes';
 import { countAdminUsers } from '@/lib/db/admin-users';
 import { getAdminStats } from '@/lib/db/stats';
+import { readAllSettings } from '@/lib/db/settings';
 import { listAudit } from '@/lib/server/audit';
 import { getSession } from '@/lib/server/session';
 import { databasePath } from '@/db/client';
@@ -16,6 +17,7 @@ import {
   OFFICE_ADDRESS,
 } from '@/lib/config';
 import { BRAND } from '@/lib/brand';
+import { VehicleRentalToggle } from '@/components/admin/vehicle-rental-toggle';
 import { formatDate } from '@/lib/format';
 
 /**
@@ -35,6 +37,7 @@ export default async function AdminSettingsPage() {
   const stats = getAdminStats();
   const admins = countAdminUsers();
   const audit = listAudit(12);
+  const settings = readAllSettings();
 
   const contactRows = [
     { label: t.contact.phone, value: PHONE_NUMBER },
@@ -46,6 +49,9 @@ export default async function AdminSettingsPage() {
   return (
     <div className="space-y-5">
       <h1 className="text-2xl">{t.admin.settings.title}</h1>
+
+      {/* Operational switches. Placed first: they change what the public sees. */}
+      <VehicleRentalToggle enabled={settings.vehicleRentalEnabled} />
 
       <div className="grid gap-5 xl:grid-cols-2">
         {/* Brand */}

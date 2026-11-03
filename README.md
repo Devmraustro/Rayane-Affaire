@@ -45,6 +45,17 @@ Site public bilingue (français / العربية), back-office authentifié, bas
 - **Sécurité** : CSP à nonce, HSTS en production, `nosniff`, `Referrer-Policy`,
   `Permissions-Policy`, cadre d'intégration limité.
 
+### Réglage : location de véhicules
+
+L'agence peut déclarer, depuis `/admin/settings`, qu'elle **ne propose pas** la
+location de véhicules. Dans ce cas le site public retire l'entrée de menu, les
+annonces de location du catalogue, le bloc véhicules de la une, le CTA du héros,
+la carte « Location de véhicules » des services et les URL correspondantes du
+`sitemap`. Les annonces `rent`/`both` renvoient alors `404`, tandis que **la
+vente de véhicules et tout l'immobilier restent inchangés**, et le back-office
+continue d'afficher l'inventaire complet. Le réglage est persisté en base, son défaut (`true`)
+préserve le comportement antérieur, et chaque changement est journalisé.
+
 ### Back-office (`/admin`)
 
 | Module | Détail |
@@ -59,7 +70,7 @@ Site public bilingue (français / العربية), back-office authentifié, bas
 | Réservations | Montants, acomptes, statuts |
 | Calendrier | Grille mensuelle construite à partir des réservations |
 | Finances | Chiffre d'affaires par période, hors données de démonstration |
-| Paramètres | État de la configuration, communes, environnement, journal d'audit |
+| Paramètres | Interrupteur **location de véhicules** (persisté), état de la configuration, communes, environnement, journal d'audit |
 | Journal d'audit | Toute écriture est tracée (acteur, action, cible, horodatage) |
 
 Chaque écriture exige : session valide **en base**, jeton CSRF, rôle suffisant, et

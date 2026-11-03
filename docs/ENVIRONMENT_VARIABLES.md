@@ -37,10 +37,33 @@ ligne.
 | Variable | Obligatoire | Défaut | Rôle |
 | --- | --- | --- | --- |
 | `NEXT_PUBLIC_SITE_URL` | **Oui en production** | `http://localhost:3000` | URL canonique : `sitemap.xml`, `robots.txt`, balises `canonical`, OpenGraph, JSON-LD |
-| `NEXT_PUBLIC_HERO_IMAGE` | Facultatif | Visuel de marque | Photographie réelle du héros (chemin ou URL absolue) |
+| `NEXT_PUBLIC_HERO_IMAGE` | Facultatif | Visuel de marque | Photographie du héros. Voir §2.1 : une URL externe n'est acceptée que depuis un hôte autorisé par la CSP. |
 
 Sans `NEXT_PUBLIC_SITE_URL` correct, le sitemap et les URL canoniques pointeront
 vers `localhost` — le référencement serait cassé.
+
+### 2.1 `NEXT_PUBLIC_HERO_IMAGE` — sources d'image acceptées
+
+La valeur est lue par `components/home/hero.tsx` et remplace le visuel de marque
+`/images/fallback/hero.svg`. Deux formes sont acceptées :
+
+| Forme | Exemple | Condition |
+| --- | --- | --- |
+| Chemin local | `/images/hero-bejaia.jpg` (fichier déposé dans `public/images/`) | **Recommandé.** Aucune configuration CSP à modifier. |
+| URL absolue `https://` | `https://upload.wikimedia.org/…` | L'hôte doit figurer dans la directive `img-src` de la CSP (`middleware.ts`). |
+
+La CSP n'autorise aujourd'hui que : `'self'`, `data:`, `blob:`, les tuiles
+OpenStreetMap, `images.unsplash.com` et `upload.wikimedia.org`. **Une URL vers
+tout autre hôte sera bloquée par le navigateur** (image absente, sans erreur
+serveur). Trois options, dans l'ordre de préférence :
+
+1. déposer la photo dans `public/images/` et utiliser un chemin local ;
+2. héberger la photo sur le même domaine (chemin local ou URL du site) ;
+3. ajouter explicitement l'hôte à `img-src` **et** à `images.remotePatterns`
+   dans `next.config.mjs`, en s'assurant que la source est bien sous licence.
+
+Le fichier doit être une photographie dont l'agence détient les droits ;
+voir la page `/credits` et `docs/ENVIRONMENT_VARIABLES.md` §1.
 
 ## 3. Secrets serveur
 

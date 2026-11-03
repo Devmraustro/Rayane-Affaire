@@ -14,9 +14,9 @@ Dernière exécution : 3 novembre 2026.
 | --- | --- | --- |
 | Types | `npx tsc --noEmit` | ✅ **0 erreur** |
 | Lint | `npm run lint` (`next lint`) | ✅ **0 avertissement, 0 erreur** |
-| Tests | `npm test` (`vitest run`) | ✅ **131 tests / 131 réussis**, 7 fichiers, ~4 s |
-| Build de production | `npm run build` | ✅ **compilé, 19 pages générées**, 36 entrées de route + middleware, aucune erreur |
-| Vérifications HTTP | `npm run smoke` | ✅ **14/14** (13 routes + absence de numéro factice) |
+| Tests | `npm test` (`vitest run`) | ✅ **161 tests / 161 réussis**, 8 fichiers, ~4 s |
+| Build de production | `npm run build` | ✅ **compilé, 20 pages générées**, 37 entrées de route + middleware, aucune erreur |
+| Vérifications HTTP | `npm run smoke` | ✅ **17/17** (15 contrôles de route : 8 pages publiques, `robots.txt`, `sitemap.xml`, garde admin, connexion admin, 3 contrôles `404` ; + 2 assertions sur le HTML servi : cohérence menu ↔ sitemap, absence de numéro factice) |
 | Parcours admin réel | `curl` (connexion → CRUD → upload → publication) | ✅ voir §6 |
 
 Aucun test n'est désactivé, ignoré (`skip`) ou marqué `todo`. Aucune couverture
@@ -34,9 +34,10 @@ n'a été réduite. Aucune assertion n'a été retirée pour faire passer la sui
 | `tests/i18n.test.ts` | 14 | Parité stricte des clés FR/AR, aucune valeur vide, aucune chaîne arabe restée en français, écriture arabe sur les libellés critiques, marque cohérente, absence du nom du projet de référence, absence de numéro factice, helpers de locale/direction, couverture de toutes les énumérations |
 | `tests/security.test.ts` | 21 | scrypt (sel, vérification, hash malformé, Unicode, politique), jeton de session haché en base, comparaison CSRF, limitation de débit, détection MIME par magic bytes, refus SVG/HTML/PHP, taille, fichier déguisé, suppression limitée, entrées hostiles stockées en texte |
 | `tests/database.test.ts` | 20 | 11 communes OSM dans la boîte englobante de la wilaya, clés étrangères, contrainte `pending ⇒ coordonnées NULL`, cycle création/publication, refus de publier sans photo, invisibilité des brouillons, règle des marqueurs de carte, filtres/recherche FR+AR/tri/pagination, cycle véhicule, exclusion des données de démonstration des statistiques, zéros sur base vide, suppression transactionnelle des médias |
-| `tests/api.test.ts` | 32 | Connexion (succès, échec générique, compte inconnu, origine croisée, validation), cookies (HttpOnly pour la session, CSRF lisible, `SameSite`, `Expires`), déconnexion révoquant la session, CSRF (absent/faux), rôles (éditeur, manager, propriétaire), compte désactivé, session expirée, session révoquée, jeton forgé, CRUD bien complet, `422` avec codes i18n, `422 MEDIA_REQUIRED`, `404`, audit, suppression, demandes publiques (valide, invalide, piège, quota `429`) |
+| `tests/api.test.ts` | 41 | Connexion (succès, échec générique, compte inconnu, origine croisée, validation), cookies (HttpOnly pour la session, CSRF lisible, `SameSite`, `Expires`), déconnexion révoquant la session, CSRF (absent/faux), rôles (éditeur, manager, propriétaire), compte désactivé, session expirée, session révoquée, jeton forgé, CRUD bien complet, `422` avec codes i18n, `422 MEDIA_REQUIRED`, `404`, audit, suppression, demandes publiques (valide, invalide, piège, quota `429`), **réglage de location** : persistance, `changed=false` sans écriture d'audit, détail d'audit avant/après, éditeur refusé (`403`), CSRF absent (`403`), non authentifié (`401`), trois `422` (type faux, clé inconnue, objet vide), JSON illisible (`400`) |
+| `tests/vehicle-rental-setting.test.ts` | 21 | **Nouveau.** Défaut `true` et préservation du comportement ; lecture d'une valeur absente, vide ou illisible ⇒ défaut ; sérialisation/analyse des booléens ; `RENTABLE_DEAL_TYPES` et `isRentableDealType` ; filtre `deal_type NOT IN ('rent','both')` appliqué au catalogue, à la une, aux suggestions et aux statistiques ; fiche `rent`/`both` invisible en public mais **toujours accessible en back-office** ; **vente de véhicules jamais filtrée** dans les deux états ; **immobilier identique** dans les deux états ; cohérence du menu et du sitemap |
 
-**Total : 131 tests.** Répartition par nature : 68 tests unitaires purs, 63 tests
+**Total : 161 tests.** Répartition par nature : 85 tests unitaires purs, 76 tests
 d'intégration (base SQLite réelle et/ou gestionnaires de route réels).
 
 ---
@@ -110,13 +111,29 @@ Exécutées avec `curl` contre `npx next dev` sur le port 3000.
   vedette » de la page d'accueil, mais restent visibles dans le catalogue avec le
   badge « Démonstration ».
 
+### Deux régressions trouvées en vérifiant le build de production
+
+Les deux ont été **corrigées** et sont désormais couvertes, mais elles méritent
+d'être consignées : elles ne se voyaient ni dans les tests, ni dans `next dev`.
+
+| Symptôme | Cause | Correctif | Preuve |
+| --- | --- | --- | --- |
+| `/vehicles/<inexistant>` et `/properties/<inexistant>` répondaient `200` avec le corps « page introuvable » (*soft 404*) | Un `loading.tsx` crée une frontière Suspense : la réponse est diffusée (statut déjà envoyé `200`) avant que `notFound()` ne puisse fixer `404`. Le problème venait de `app/loading.tsx` **et**, après suppression, du `loading.tsx` des segments `/vehicles` et `/properties` | Suppression du squelette racine et des squelettes de ces deux segments ; conservé uniquement sur `/map` (route feuille) | `curl -o /dev/null -w '%{http_code}'` ⇒ `404` sur build de production ; **2 contrôles ajoutés à `smoke`** |
+| `/admin/login` répondait `307` vers `/admin/login` : **connexion impossible** | `app/admin/layout.tsx` gardait toutes les URL `/admin`, y compris la page de connexion | Le layout exempte `/admin/login`, dont le chemin est transmis par le middleware dans `x-pathname` (les en-têtes ne l'exposent pas) | `/admin/login` → `200`, `/admin` → `307` vers `/admin/login?next=%2Fadmin`, connexion puis **9 pages admin en `200`** ; `/admin` reste protégé. **Échappement impossible** : comparaison exacte (`===`, pas `startsWith`) et `x-pathname` réécrit par le middleware avec `Headers.set` ; un en-tête forgé `x-pathname: /admin/login` (seul ou avec `x-invoke-path`) sur `/admin` et `/admin/settings` renvoie **`307`** et **aucun contenu d'administration** (vérifié par `curl` sur le build de production) |
+
+Un troisième défaut, plus discret, a été corrigé dans la même passe : le
+`sitemap.xml` était **prégénéré** alors qu'il dépend d'un réglage en base ; il
+continuait donc à annoncer les URL de location après désactivation
+(`x-nextjs-cache: HIT`). Il est passé en `force-dynamic` et `smoke` vérifie
+désormais la cohérence menu ↔ sitemap.
+
 ### Remarque sur la fiabilité du script `smoke`
 
 Le serveur de développement et `next build` écrivent tous deux dans `.next`. Si
 le script `smoke` est lancé **pendant** un build de production, une requête peut
 échouer transitoirement (le serveur de développement recompile). Observé une
 fois, puis reproduction impossible : 3 exécutions consécutives sans échec, et un
-contrôle direct des 13 routes (`/` → 200 … `/admin` → 307, 17–199 ms chacune).
+contrôle direct des routes publiques (`/` → 200 … `/admin` → 307).
 **Conclusion : lancer `smoke` contre un serveur au repos** (ou contre la
 production, où aucun build ne tourne). Ce n'est pas un défaut applicatif.
 
@@ -135,55 +152,104 @@ développement ; en production le middleware émet `'nonce-…' 'strict-dynamic'
 
 ---
 
+## 4 bis. Réglage de la location de véhicules — matrice vérifiée de bout en bout
+
+Le réglage est couvert par 30 tests automatisés (21 + 9), mais son effet public a
+aussi été vérifié à la main **sur un build de production**, dans les deux états,
+en FR et en AR. Base : 6 biens de démonstration et **3 véhicules de
+démonstration, tous en location ou mixte** (`rent`, `rent`, `both`). Le jeu de
+démonstration ne contient **aucun véhicule en vente** ; les lignes « vente » de la
+matrice ont donc été vérifiées avec un véhicule `sale` créé puis supprimé pour
+l'occasion (aucune donnée inventée ne subsiste en base).
+
+| Surface | Location **activée** (défaut) | Location **désactivée** |
+| --- | --- | --- |
+| Menu (en-tête, pied de page) | entrée « Véhicules » présente | **absente** |
+| `/vehicles` | 3 véhicules | **0 véhicule** avec le jeu de démonstration actuel (tous en location) ; l'état vide s'affiche sous le titre « Véhicules à vendre ». Dès qu'une annonce `sale` existe, elle est la seule servie |
+| `/vehicles/<location>` | `200` | **`404`** |
+| `/vehicles/<vente>` | `200` | **`200`** (inchangé) — vérifié avec un véhicule `sale` temporaire, supprimé ensuite |
+| Une — bloc véhicules | présent | **absent** |
+| Une — CTA « Louer un véhicule » | présent | **absent** |
+| Bandeau de chiffres — tuile véhicules | présente | **absente** (pas de `0` trompeur) |
+| `/services` — carte location | présente | **absente** |
+| `sitemap.xml` | contient `/vehicles` et les fiches | **aucune URL de location** |
+| `/admin/vehicles` | 3 véhicules | **3 véhicules** (le back-office ne filtre jamais) — c'est la preuve que le réglage masque sans supprimer |
+| `/properties`, `/map`, `/communes` | référence | **identique** (aucune régression) |
+
+Ces valeurs ont été obtenues par `curl` sur le HTML servi, pas par lecture du
+code. Elles sont aussi contrôlées automatiquement dans
+`tests/vehicle-rental-setting.test.ts` et par le script `smoke`
+(contrôle de cohérence menu ↔ `sitemap`).
+
+**Limite honnête** : cette matrice a été établie sur du HTML et des codes de
+statut, pas sur un rendu visuel. Aucun navigateur n'était disponible (voir §6).
+
 ## 5. Build de production
 
-Sortie réelle (`npm run build`, extrait ; les lignes API sont regroupées) :
+Sortie réelle (`npm run build`) :
 
 ```
-✓ Compiled successfully
+ ✓ Compiled successfully
   Linting and checking validity of types ...
-✓ Generating static pages (19/19)
+ ✓ Generating static pages (19/19)
 
 Route (app)                                 Size  First Load JS
-┌ ƒ /                                     14.6 kB         158 kB
-├ ƒ /_not-found                             175 B         104 kB
-├ ƒ /about                                   6 kB         147 kB
+┌ ƒ /                                    12.1 kB         159 kB
+├ ƒ /_not-found                            175 B         104 kB
+├ ƒ /about                               3.37 kB         148 kB
 ├ ƒ /admin                                 504 B         107 kB
-├ ƒ /admin/calendar                         175 B         104 kB
-├ ƒ /admin/customers                        175 B         104 kB
+├ ƒ /admin/calendar                        175 B         104 kB
+├ ƒ /admin/customers                       175 B         104 kB
 ├ ƒ /admin/finances                        504 B         107 kB
-├ ƒ /admin/inquiries                      4.36 kB         145 kB
-├ ƒ /admin/login                          4.78 kB         136 kB
-├ ƒ /admin/properties                     2.93 kB         143 kB
-├ ƒ /admin/properties/[id]/edit             144 B         169 kB
-├ ƒ /admin/properties/new                   144 B         169 kB
-├ ƒ /admin/reservations                     175 B         104 kB
-├ ƒ /admin/settings                         175 B         104 kB
-├ ƒ /admin/vehicles                       2.93 kB         143 kB
-├ ƒ /admin/vehicles/[id]/edit               144 B         169 kB
-├ ƒ /admin/vehicles/new                     144 B         169 kB
-├ ƒ /api/admin/… (5 routes)                 175 B         104 kB
-├ ƒ /api/auth/login|logout                  175 B         104 kB
-├ ƒ /api/inquiries                          175 B         104 kB
-├ ƒ /api/media/[file]                       175 B         104 kB
-├ ƒ /contact                              2.49 kB         157 kB
-├ ƒ /credits                              2.84 kB         138 kB
-├ ƒ /map                                  5.02 kB         143 kB
-├ ƒ /properties                           4.01 kB         151 kB
-├ ƒ /properties/[slug]                    7.52 kB         194 kB
-├ ○ /robots.txt                             175 B         104 kB
-├ ƒ /services                             5.13 kB         141 kB
-├ ○ /sitemap.xml                            175 B         104 kB
-├ ƒ /vehicles                             5.55 kB         149 kB
-└ ƒ /vehicles/[slug]                      6.27 kB         180 kB
+├ ƒ /admin/inquiries                      4.62 kB         145 kB
+├ ƒ /admin/login                            5 kB         136 kB
+├ ƒ /admin/properties                      3.2 kB         144 kB
+├ ƒ /admin/properties/[id]/edit            147 B         169 kB
+├ ƒ /admin/properties/new                  147 B         169 kB
+├ ƒ /admin/reservations                    175 B         104 kB
+├ ƒ /admin/settings                      2.08 kB         140 kB
+├ ƒ /admin/vehicles                        3.2 kB         144 kB
+├ ƒ /admin/vehicles/[id]/edit              148 B         169 kB
+├ ƒ /admin/vehicles/new                    147 B         169 kB
+├ ƒ /api/admin/inquiries/[id]              175 B         104 kB
+├ ƒ /api/admin/media                       175 B         104 kB
+├ ƒ /api/admin/properties                  175 B         104 kB
+├ ƒ /api/admin/properties/[id]             175 B         104 kB
+├ ƒ /api/admin/settings                    175 B         104 kB
+├ ƒ /api/admin/vehicles                    175 B         104 kB
+├ ƒ /api/admin/vehicles/[id]               175 B         104 kB
+├ ƒ /api/auth/login                        175 B         104 kB
+├ ƒ /api/auth/logout                       175 B         104 kB
+├ ƒ /api/inquiries                         175 B         104 kB
+├ ƒ /api/media/[file]                      175 B         104 kB
+├ ƒ /contact                             1.77 kB         158 kB
+├ ƒ /credits                              203 B         139 kB
+├ ƒ /map                                 5.19 kB         144 kB
+├ ƒ /properties                          4.17 kB         151 kB
+├ ƒ /properties/[slug]                   7.52 kB         195 kB
+├ ○ /robots.txt                            175 B         104 kB
+├ ƒ /services                            2.55 kB         141 kB
+├ ƒ /sitemap.xml                           175 B         104 kB
+├ ƒ /vehicles                            5.72 kB         150 kB
+└ ƒ /vehicles/[slug]                     6.28 kB         181 kB
 
-+ First Load JS shared by all                             103 kB
++ First Load JS shared by all             103 kB
 ƒ Middleware                                           34.5 kB
 ```
 
-**36 entrées de route** (26 pages, dont `robots.txt` et `sitemap.xml` générés,
-+ 10 routes API) et le middleware. JS partagé : **103 kB**. Aucune erreur, aucun
-avertissement ESLint.
+**38 entrées de route** (27 pages, dont `robots.txt` généré, + 11 routes API) et
+le middleware. JS partagé : **103 kB**. Aucune erreur, aucun avertissement ESLint,
+et **20 pages statiques générées**
+
+Trois écarts avec l'exécution précédente, chacun expliqué :
+
+- **+1 route API** : `/api/admin/settings` (réglage de la location de véhicules).
+- **`/sitemap.xml` passe de `○` (statique) à `ƒ` (dynamique)** : son contenu dépend
+  désormais du réglage en base. Prégénéré, il continuait d'annoncer les URL de
+  location après la désactivation (`x-nextjs-cache: HIT` constaté sur le serveur
+  de production). `robots.txt` reste statique.
+- **`app/loading.tsx` supprimé**, remplacé par `app/map/loading.tsx` : le
+  squelette racine provoquait des *soft 404* (cf. §6).
 
 ## 6. Ce qui n'est **pas** testé automatiquement
 
@@ -207,7 +273,7 @@ avertissement ESLint.
 npm install
 npm run typecheck     # 0 erreur
 npm run lint          # 0 avertissement
-npm test              # 131 tests
+npm test              # 161 tests
 npm run build         # build de production
 npm run dev &         # puis, dans un autre terminal :
 npm run smoke -- http://localhost:3000

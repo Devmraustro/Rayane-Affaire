@@ -4,6 +4,7 @@ import type { PublicStats } from '@/lib/db/stats';
 import type { Dictionary } from '@/lib/i18n/dictionaries';
 import { formatNumber } from '@/lib/format';
 import type { Locale } from '@/types';
+import { cn } from '@/lib/utils';
 
 /**
  * Public statistics.
@@ -13,7 +14,22 @@ import type { Locale } from '@/types';
  * a row of zeros pretending to be a track record: we show an honest sentence
  * instead. This is the rule that removes GW's fabricated "250 biens" band.
  */
-export function StatsBand({ stats, t, locale }: { stats: PublicStats; t: Dictionary; locale: Locale }) {
+export function StatsBand({
+  stats,
+  t,
+  locale,
+  rentalEnabled = true,
+}: {
+  stats: PublicStats;
+  t: Dictionary;
+  locale: Locale;
+  /**
+   * When rental is off, the vehicle figure is dropped rather than shown as a
+   * zero: "0 véhicule" would read as an empty rental fleet instead of "we do not
+   * rent vehicles".
+   */
+  rentalEnabled?: boolean;
+}) {
   if (stats.isEmpty) {
     return (
       <div className="rounded-2xl border border-dashed border-sand-300 bg-white/70 px-6 py-8 text-center">
@@ -28,15 +44,21 @@ export function StatsBand({ stats, t, locale }: { stats: PublicStats; t: Diction
     );
   }
 
-  const items = [
+  const allItems = [
     { key: 'properties', value: stats.publishedProperties, label: t.home.statsPublishedProperties, icon: Building2 },
     { key: 'vehicles', value: stats.publishedVehicles, label: t.home.statsPublishedVehicles, icon: Car },
     { key: 'communes', value: stats.coveredCommunes, label: t.home.statsCommunes, icon: MapPin },
     { key: 'available', value: stats.availableNow, label: t.home.statsAvailableNow, icon: CheckCircle2 },
   ] as const;
+  const items = allItems.filter((item) => rentalEnabled || item.key !== 'vehicles');
 
   return (
-    <dl className="grid grid-cols-2 divide-sand-200 overflow-hidden rounded-2xl border border-sand-200 bg-white shadow-card sm:grid-cols-4 sm:divide-x rtl:sm:divide-x-reverse">
+    <dl
+      className={cn(
+        'grid grid-cols-2 divide-sand-200 overflow-hidden rounded-2xl border border-sand-200 bg-white shadow-card sm:divide-x rtl:sm:divide-x-reverse',
+        items.length === 4 ? 'sm:grid-cols-4' : 'sm:grid-cols-3',
+      )}
+    >
       {items.map(({ key, value, label, icon: Icon }) => (
         <div key={key} className="flex flex-col items-center gap-1.5 px-4 py-6 text-center">
           <Icon aria-hidden="true" className="size-4 text-gold-600" />

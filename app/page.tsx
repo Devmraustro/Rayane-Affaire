@@ -11,6 +11,7 @@ import { ContactTeaser } from '@/components/home/contact-teaser';
 import { PublicShell } from '@/components/shared/public-shell';
 import { listCommunes } from '@/lib/db/communes';
 import { listFeaturedProperties, listFeaturedVehicles } from '@/lib/db/featured';
+import { isVehicleRentalEnabled } from '@/lib/db/settings';
 import { getPublicStats } from '@/lib/db/stats';
 import { dictionaries } from '@/lib/i18n/dictionaries';
 import { resolveLocale } from '@/lib/i18n/locale';
@@ -33,11 +34,14 @@ export default async function HomePage() {
   const communes = listCommunes({ activeOnly: true });
   const stats = getPublicStats();
   const properties = listFeaturedProperties(6);
-  const vehicles = listFeaturedVehicles(3);
+  // With no rental service the homepage simply has no vehicle spotlight: an
+  // empty "featured vehicles" block would advertise a service that does not exist.
+  const rentalEnabled = isVehicleRentalEnabled();
+  const vehicles = rentalEnabled ? listFeaturedVehicles(3) : [];
 
   return (
     <PublicShell transparentHeader>
-      <Hero communes={communes} />
+      <Hero communes={communes} rentalEnabled={rentalEnabled} />
 
       <section className="border-b border-sand-200 bg-sand-50 py-10 sm:py-12">
         <div className="container-page">
@@ -51,15 +55,15 @@ export default async function HomePage() {
               </p>
             </div>
             <div className="w-full sm:max-w-2xl">
-              <StatsBand stats={stats} t={t} locale={locale} />
+              <StatsBand stats={stats} t={t} locale={locale} rentalEnabled={rentalEnabled} />
             </div>
           </div>
         </div>
       </section>
 
       <FeaturedProperties items={properties} />
-      <FeaturedVehicles items={vehicles} />
-      <ServicesSection />
+      {rentalEnabled && <FeaturedVehicles items={vehicles} />}
+      <ServicesSection rentalEnabled={rentalEnabled} />
       <WhyUsSection />
       <AboutSection />
       <CoverageSection communes={communes} />

@@ -5,6 +5,7 @@ import { ServicesContent } from '@/components/pages/services-content';
 import { dictionaries } from '@/lib/i18n/dictionaries';
 import { resolveLocale } from '@/lib/i18n/locale';
 import { LOCALE_COOKIE } from '@/lib/config';
+import { isVehicleRentalEnabled } from '@/lib/db/settings';
 
 export async function generateMetadata(): Promise<Metadata> {
   const jar = await cookies();
@@ -16,7 +17,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default function ServicesPage() {
   return (
     <PublicShell>
-      <ServicesContent />
+      <ServicesContent rentalEnabled={isVehicleRentalEnabled()} />
     </PublicShell>
   );
 }

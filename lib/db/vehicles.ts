@@ -8,8 +8,22 @@ import {
   type VehicleRow,
 } from './mappers';
 import type { Paginated, Vehicle, VehicleFilters, VehicleSummary } from '@/types';
+import { isVehicleRentalEnabled } from './settings';
+import { RENTABLE_DEAL_TYPES } from '@/lib/settings';
 
-/** Vehicle repository — mirrors `lib/db/properties.ts` semantics. */
+/**
+ * Vehicle repository — mirrors `lib/db/properties.ts` semantics.
+ *
+ * Rental visibility: when the agency has no rental service (own fleet or
+ * partner), every reader that serves the *public* surface takes `rentalEnabled`
+ * and excludes vehicles whose `deal_type` is rentable. Sale-only listings are
+ * never filtered out — the brief is explicit that hiding rental must not hide
+ * sales.
+ *
+ * Admin readers pass `includeRentalOnly: true` (see `lib/db/admin-listings.ts`),
+ * so an operator keeps working with the full inventory while the public site is
+ * narrowed.
+ */
 
 /** Re-exported so server callers keep a single import site (see lib/filters.ts). */
 export { defaultVehicleFilters } from '@/lib/filters';
@@ -21,12 +35,18 @@ interface WhereClause {
 
 export function buildVehicleWhere(
   filters: VehicleFilters,
-  scope: { includeDemo?: boolean } = {},
+  scope: { includeDemo?: boolean; rentalEnabled?: boolean } = {},
 ): WhereClause {
   const clauses: string[] = [`v.status = 'published'`];
   const params: (string | number)[] = [];
 
   if (scope.includeDemo === false) clauses.push('v.is_demo = 0');
+
+  // Rental switched off ⇒ drop rentable listings (`rent` and `both`), keep sales.
+  if (scope.rentalEnabled === false) {
+    clauses.push(`v.deal_type NOT IN (${RENTABLE_DEAL_TYPES.map(() => '?').join(',')})`);
+    params.push(...RENTABLE_DEAL_TYPES);
+  }
 
   if (filters.query.trim()) {
     const like = `%${filters.query.trim().toLowerCase()}%`;
@@ -135,10 +155,15 @@ function toSummary(row: VehicleJoinedRow, thumb: MediaRow | undefined): VehicleS
 
 export function listVehicles(
   filters: VehicleFilters,
-  scope: { includeDemo?: boolean } = {},
+  scope: { includeDemo?: boolean; rentalEnabled?: boolean } = {},
 ): Paginated<VehicleSummary> {
   const db = getDb();
-  const where = buildVehicleWhere(filters, scope);
+  // Default to the persisted setting so no caller can accidentally widen the
+  // public surface by forgetting to pass it.
+  const where = buildVehicleWhere(filters, {
+    ...scope,
+    rentalEnabled: scope.rentalEnabled ?? isVehicleRentalEnabled(),
+  });
   const total = (
     db
       .prepare(
@@ -224,14 +249,23 @@ function hydrate(row: VehicleRow): Vehicle | null {
   };
 }
 
-export function getVehicleBySlug(slug: string, scope: { includeDemo?: boolean } = {}): Vehicle | null {
+export function getVehicleBySlug(
+  slug: string,
+  scope: { includeDemo?: boolean; rentalEnabled?: boolean } = {},
+): Vehicle | null {
+  const rentalEnabled = scope.rentalEnabled ?? isVehicleRentalEnabled();
+  const rentalClause = rentalEnabled
+    ? ''
+    : ` AND deal_type NOT IN (${RENTABLE_DEAL_TYPES.map(() => '?').join(',')})`;
   const row = getDb()
     .prepare(
       `SELECT * FROM vehicles WHERE slug = ? AND status = 'published'${
         scope.includeDemo === false ? ' AND is_demo = 0' : ''
-      }`,
+      }${rentalClause}`,
     )
-    .get(slug) as VehicleRow | undefined;
+    .get(
+      ...(rentalEnabled ? [slug] : [slug, ...RENTABLE_DEAL_TYPES]),
+    ) as VehicleRow | undefined;
   return row ? hydrate(row) : null;
 }
 
@@ -242,33 +276,51 @@ export function getVehicleById(id: string): Vehicle | null {
   return row ? hydrate(row) : null;
 }
 
-export function listFeaturedVehicles(limit = 3): VehicleSummary[] {
+export function listFeaturedVehicles(
+  limit = 3,
+  scope: { rentalEnabled?: boolean } = {},
+): VehicleSummary[] {
   const db = getDb();
+  const rentalEnabled = scope.rentalEnabled ?? isVehicleRentalEnabled();
+  const rentalClause = rentalEnabled
+    ? ''
+    : ` AND v.deal_type NOT IN (${RENTABLE_DEAL_TYPES.map(() => '?').join(',')})`;
+  const params: (string | number)[] = rentalEnabled ? [limit] : [...RENTABLE_DEAL_TYPES, limit];
   const rows = db
     .prepare(
       `SELECT v.*, c.id AS c_id, c.slug AS c_slug, c.name_fr AS c_name_fr, c.name_ar AS c_name_ar
        FROM vehicles v JOIN communes c ON c.id = v.commune_id
-       WHERE v.status = 'published'
+       WHERE v.status = 'published'${rentalClause}
        ORDER BY v.featured DESC, v.published_at DESC, v.created_at DESC
        LIMIT ?`,
     )
-    .all(limit) as unknown as VehicleJoinedRow[];
+    .all(...params) as unknown as VehicleJoinedRow[];
   const thumbs = thumbnailsFor(rows.map((r) => r.id));
   return rows.map((row) => toSummary(row, thumbs.get(row.id)));
 }
 
-export function listSimilarVehicles(vehicle: Vehicle, limit = 3): VehicleSummary[] {
+export function listSimilarVehicles(
+  vehicle: Vehicle,
+  limit = 3,
+  scope: { rentalEnabled?: boolean } = {},
+): VehicleSummary[] {
   const db = getDb();
+  const rentalEnabled = scope.rentalEnabled ?? isVehicleRentalEnabled();
+  const rentalClause = rentalEnabled
+    ? ''
+    : ` AND v.deal_type NOT IN (${RENTABLE_DEAL_TYPES.map(() => '?').join(',')})`;
+  const rentalParams: string[] = rentalEnabled ? [] : [...RENTABLE_DEAL_TYPES];
   const rows = db
     .prepare(
       `SELECT v.*, c.id AS c_id, c.slug AS c_slug, c.name_fr AS c_name_fr, c.name_ar AS c_name_ar
        FROM vehicles v JOIN communes c ON c.id = v.commune_id
-       WHERE v.status = 'published' AND v.id <> ?
+       WHERE v.status = 'published' AND v.id <> ?${rentalClause}
        ORDER BY (v.category = ?) DESC, ABS(COALESCE(v.daily_price, v.sale_price, 0) - ?) ASC
        LIMIT ?`,
     )
     .all(
       vehicle.id,
+      ...rentalParams,
       vehicle.category,
       vehicle.dailyPrice ?? vehicle.salePrice ?? 0,
       limit,

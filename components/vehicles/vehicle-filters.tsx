@@ -14,9 +14,15 @@ import { cn } from '@/lib/utils';
 export function VehicleFiltersPanel({
   communes,
   filters,
+  rentalEnabled = true,
 }: {
   communes: Commune[];
   filters: VehicleFilters;
+  /**
+   * When false, the offer selector only lists "sale": offering a "rent" filter
+   * would return nothing and imply a service that does not exist.
+   */
+  rentalEnabled?: boolean;
 }) {
   const { t, pick } = useI18n();
   const router = useRouter();
@@ -114,9 +120,10 @@ export function VehicleFiltersPanel({
         <Field label={t.vehicles.dealType} htmlFor="deal">
           <Select id="deal" name="deal" defaultValue={filters.dealTypes[0] ?? ''} onChange={onSelectChange}>
             <option value="">{t.common.all}</option>
-            <option value="rent">{t.labels.dealType.rent}</option>
+            {rentalEnabled && <option value="rent">{t.labels.dealType.rent}</option>}
             <option value="sale">{t.labels.dealType.sale}</option>
-            <option value="both">{t.labels.dealType.both}</option>
+            {/* `both` includes rental, so it is only meaningful while rental is on. */}
+            {rentalEnabled && <option value="both">{t.labels.dealType.both}</option>}
           </Select>
         </Field>
 

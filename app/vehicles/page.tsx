@@ -9,6 +9,7 @@ import { Pagination } from '@/components/shared/pagination';
 import { EmptyState } from '@/components/shared/empty-state';
 import { listVehicles } from '@/lib/db/vehicles';
 import { listCommunes } from '@/lib/db/communes';
+import { isVehicleRentalEnabled } from '@/lib/db/settings';
 import { parseVehicleSearchParams, toVehicleQuery } from '@/lib/filters';
 import { dictionaries } from '@/lib/i18n/dictionaries';
 import { resolveLocale } from '@/lib/i18n/locale';
@@ -23,10 +24,14 @@ export async function generateMetadata(): Promise<Metadata> {
   const jar = await cookies();
   const locale = resolveLocale(jar.get(LOCALE_COOKIE)?.value);
   const t = dictionaries[locale];
+  const rentalEnabled = isVehicleRentalEnabled();
   return {
-    title: t.vehicles.title,
-    description: t.vehicles.subtitle,
+    // With rental off, the catalogue is a sale catalogue, so the metadata and the
+    // index/nofollow decision follow the actual content instead of the old copy.
+    title: rentalEnabled ? t.vehicles.title : t.vehicles.titleSaleOnly,
+    description: rentalEnabled ? t.vehicles.subtitle : t.vehicles.subtitleSaleOnly,
     alternates: { canonical: '/vehicles' },
+    robots: rentalEnabled ? undefined : { index: true, follow: true },
   };
 }
 
@@ -37,7 +42,10 @@ export default async function VehiclesPage({ searchParams }: PageProps) {
 
   const filters = parseVehicleSearchParams(await searchParams);
   const communes = listCommunes({ activeOnly: true });
-  const results = listVehicles(filters);
+  const rentalEnabled = isVehicleRentalEnabled();
+  // `listVehicles` already excludes rentable listings when the flag is off; the
+  // explicit pass keeps the intent visible at the call site.
+  const results = listVehicles(filters, { rentalEnabled });
 
   const buildHref = (page: number) => {
     const query = toVehicleQuery({ ...filters, page });
@@ -57,15 +65,23 @@ export default async function VehiclesPage({ searchParams }: PageProps) {
             </span>
             <span className="text-ink-600">{t.vehicles.title}</span>
           </nav>
-          <h1 className="mt-3 text-3xl sm:text-4xl">{t.vehicles.title}</h1>
-          <p className="mt-2 max-w-2xl text-[0.9375rem] text-ink-500">{t.vehicles.subtitle}</p>
+          <h1 className="mt-3 text-3xl sm:text-4xl">
+            {rentalEnabled ? t.vehicles.title : t.vehicles.titleSaleOnly}
+          </h1>
+          <p className="mt-2 max-w-2xl text-[0.9375rem] text-ink-500">
+            {rentalEnabled ? t.vehicles.subtitle : t.vehicles.subtitleSaleOnly}
+          </p>
         </div>
       </div>
 
       <div className="container-page py-8 lg:py-10">
         <div className="grid gap-8 lg:grid-cols-[280px_1fr] lg:gap-10">
           <aside>
-            <VehicleFiltersPanel communes={communes} filters={filters} />
+            <VehicleFiltersPanel
+              communes={communes}
+              filters={filters}
+              rentalEnabled={rentalEnabled}
+            />
           </aside>
 
           <section aria-live="polite">
@@ -85,8 +101,8 @@ export default async function VehiclesPage({ searchParams }: PageProps) {
               <EmptyState
                 className="mt-8"
                 icon={Car}
-                title={t.empty.vehiclesTitle}
-                body={t.empty.vehiclesBody}
+                title={rentalEnabled ? t.empty.vehiclesTitle : t.empty.vehiclesSaleTitle}
+                body={rentalEnabled ? t.empty.vehiclesBody : t.empty.vehiclesSaleBody}
                 action={
                   <Link
                     href="/vehicles"

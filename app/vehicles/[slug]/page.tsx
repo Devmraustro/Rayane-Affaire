@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { PublicShell } from '@/components/shared/public-shell';
 import { VehicleDetail } from '@/components/vehicles/vehicle-detail';
 import { getVehicleBySlug, listSimilarVehicles } from '@/lib/db/vehicles';
+import { isVehicleRentalEnabled } from '@/lib/db/settings';
 import { dictionaries } from '@/lib/i18n/dictionaries';
 import { resolveLocale } from '@/lib/i18n/locale';
 import { LOCALE_COOKIE, SITE_URL } from '@/lib/config';
@@ -17,7 +18,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const jar = await cookies();
   const locale = resolveLocale(jar.get(LOCALE_COOKIE)?.value);
   const t = dictionaries[locale];
-  const vehicle = getVehicleBySlug(decodeURIComponent(slug));
+  // A rental-only vehicle has no public detail page while the agency has no
+  // rental service; metadata must say "not found" rather than leak the listing.
+  const vehicle = getVehicleBySlug(decodeURIComponent(slug), {
+    rentalEnabled: isVehicleRentalEnabled(),
+  });
 
   if (!vehicle) {
     return { title: t.errors.listingNotFoundTitle, robots: { index: false, follow: false } };
@@ -41,9 +46,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function VehicleDetailPage({ params }: PageProps) {
   const { slug } = await params;
-  const vehicle = getVehicleBySlug(decodeURIComponent(slug));
+  const rentalEnabled = isVehicleRentalEnabled();
+  const vehicle = getVehicleBySlug(decodeURIComponent(slug), { rentalEnabled });
   if (!vehicle) notFound();
-  const similar = listSimilarVehicles(vehicle, 3);
+  const similar = listSimilarVehicles(vehicle, 3, { rentalEnabled });
 
   return (
     <PublicShell>

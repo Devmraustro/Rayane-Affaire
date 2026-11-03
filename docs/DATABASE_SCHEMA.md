@@ -226,6 +226,18 @@ Magasin clé/valeur (`key` PK, `value`, `updated_at`) réservé aux réglages
 modifiables sans redéploiement. Les secrets **n'y sont jamais stockés** : ils
 restent dans l'environnement.
 
+| Clé | Valeurs | Défaut | Effet |
+| --- | --- | --- | --- |
+| `vehicle_rental_enabled` | `'true'` \| `'false'` | `'true'` | Expose ou masque l'offre de location de véhicules sur le site public (voir `docs/API_DOCUMENTATION.md`) |
+
+Insérée par la migration `db/migrations/001_vehicle_rental_setting.sql`
+(`ON CONFLICT DO NOTHING`, donc un choix déjà enregistré n'est jamais écrasé).
+Une valeur illisible est traitée comme le défaut ; une ligne absente aussi, ce
+qui rend le réglage rétro-compatible avec une base migrée avant son existence.
+
+**Le défaut `'true'` préserve le comportement antérieur** : déployer ce réglage
+ne change rien tant qu'un opérateur ne le désactive pas explicitement.
+
 ---
 
 ## Index (21)

@@ -65,6 +65,9 @@ export function middleware(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-csp-nonce', nonce);
   requestHeaders.set('Content-Security-Policy', csp);
+  // Forwarded so server layouts can distinguish /admin/login from the rest of
+  // the admin area without re-parsing the request URL.
+  requestHeaders.set('x-pathname', pathname);
 
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set('Content-Security-Policy', csp);

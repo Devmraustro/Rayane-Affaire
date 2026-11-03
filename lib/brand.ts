@@ -64,3 +64,18 @@ export const PRIMARY_NAV: NavItem[] = [
   { href: '/about', labelKey: 'about' },
   { href: '/contact', labelKey: 'contact' },
 ];
+
+/**
+ * Navigation with the vehicle section removed when the agency has no rental
+ * service.
+ *
+ * The site is a head term for both property and vehicle searches, so the
+ * vehicle entry disappears from every menu (header, mobile drawer, footer)
+ * rather than linking to a page that would then refuse to render. Property
+ * navigation is untouched.
+ */
+export function primaryNavFor(options: { rentalEnabled: boolean }): NavItem[] {
+  return options.rentalEnabled
+    ? PRIMARY_NAV
+    : PRIMARY_NAV.filter((item) => item.labelKey !== 'vehicles');
+}

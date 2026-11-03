@@ -21,8 +21,10 @@ qui n'a pas été exécuté est explicitement marqué comme non fait.
 | | |
 | --- | --- |
 | Point de départ | `8f8a982` — *Initial commit* (scaffold Next.js seul) |
-| HEAD poussé | **`ba1cf6b`** — `feat: add a credits page for ODbL and image attribution` |
-| Commits | 3 (fonctionnalités → documentation + attribution → page de crédits) |
+| HEAD avant ce lot | `b42d32e` — `docs: add the final report and correct two build figures` |
+| HEAD de ce lot | commit `feat(admin): make vehicle rental visibility a persisted setting` — **SHA exact dans la pull request #1 et `git log -1`** (un commit ne peut pas contenir son propre condensat, il n'est donc pas recopié ici) |
+| Commits sur la branche | 5 (`8f8a982` → `be9c3af` → `f3539bb` → `ba1cf6b` → `b42d32e` → ce commit) |
+| Branche | `arena/c6e4a623-rayane-affaire`, poussée sur `origin` |
 
 ## 4. Pile technique
 
@@ -43,6 +45,14 @@ JSON-LD réel uniquement), pages 404/500/chargement.
 **Back-office** : connexion, vue d'ensemble, biens, véhicules, médias, demandes,
 clients, réservations, calendrier, finances, paramètres, journal d'audit.
 
+**Réglage de visibilité de la location de véhicules** (dernier lot) : l'agence
+déclare depuis `/admin/settings` si elle propose la location. Le choix est
+persisté en base, journalisé (valeur avant/après), et appliqué **côté serveur à
+toutes les surfaces publiques** — menu, catalogue, une, CTA, chiffres, services,
+`sitemap.xml` — tout en laissant **la vente de véhicules et tout l'immobilier
+intacts**. Défaut `true` : aucun changement de comportement pour une base
+existante. Détail : `docs/ARCHITECTURE.md` §9.
+
 **Non livré** (assumé, voir §9) : interface de gestion des comptes (rôles et
 autorisations en place), 2FA, réinitialisation de mot de passe, notifications,
 création de réservation depuis l'interface.
@@ -56,6 +66,9 @@ Base **créée de zéro** (le dépôt n'en avait aucune) : **12 tables** — `co
 
 - **21 index**, dont composites `(status, is_demo, published_at DESC)` pour les
   listes publiques ;
+- **1 migration versionnée** (`db/migrations/001_vehicle_rental_setting.sql`),
+  appliquée par `npm run db:migrate` ; idempotente (`ON CONFLICT DO NOTHING`),
+  elle n'écrase jamais un réglage déjà choisi ;
 - contraintes `CHECK` sur chaque énumération, montants `>= 0`,
   `end_date >= start_date`, et surtout
   **`coordinate_precision='pending' ⇒ lat/lng NULL`** ;
@@ -154,22 +167,34 @@ Risques résiduels et points ouverts : `docs/SECURITY_AUDIT.md` §9.
 
 | Résultat | Détail |
 | --- | --- |
-| **131 / 131 réussis** | 7 fichiers, ~4 s, exécution réelle |
+| **161 / 161 réussis** | 8 fichiers, ~4,3 s, exécution réelle |
 | 0 désactivé | aucun `skip`, `todo` ou assertion retirée |
-| 68 unitaires / 63 intégration | intégration = vraie base SQLite + vrais gestionnaires de route |
+| 85 unitaires / 76 intégration | intégration = vraie base SQLite + vrais gestionnaires de route |
 
 Répartition : validation 20 · filtres 11 · formatage 13 · i18n/RTL 14 ·
-sécurité 21 · base de données 20 · API 32.
+sécurité 21 · base de données 20 · API 41 · **réglage de la location 21**.
+
+Les 30 tests ajoutés depuis le premier rapport couvrent le réglage de visibilité
+de la location de véhicules : 21 tests de comportement (défaut, lecture
+défaillante, filtre, visibilité publique dans les deux états, non-régression de
+la vente et de l'immobilier) et 9 tests de l'endpoint `PATCH /api/admin/settings`
+(autorisation, CSRF, validation stricte, persistance, audit avant/après,
+`changed=false` sans écriture).
 
 **Non couvert** (déclaré) : navigateur/E2E, rendu visuel, carte interactive,
 envoi d'e-mail, charge, test d'intrusion — voir `docs/TESTING_REPORT.md` §6.
 
 ## 13. Résultat du build
 
-`npm run build` → **succès**. **36 entrées de route** (26 routes de page dont
-`robots.txt` et `sitemap.xml` générés, 10 routes API) + middleware, 19 pages
-générées, JS partagé **103 kB**,
-aucune erreur, aucun avertissement ESLint. `tsc --noEmit` : **0 erreur**.
+`npm run build` → **succès**. **38 entrées de route** (27 routes de page dont
+`robots.txt`, désormais 11 routes API) + middleware, **20 pages statiques**,
+JS partagé **103 kB**, aucune erreur, aucun avertissement ESLint.
+`tsc --noEmit` : **0 erreur**. `npm run smoke` contre un serveur de production
+au repos : **17/17**.
+
+Deux évolutions depuis le premier rapport : `+1` route API
+(`/api/admin/settings`) et `/sitemap.xml` passé de statique à dynamique (son
+contenu dépend du réglage de location ; prégénéré, il servait des URL périmées).
 
 ## 14. Statut CI
 
@@ -186,11 +211,29 @@ est écrite et testée localement (build de production réussi) :
 fichiers éphémère (Vercel/Netlify) **perdrait la base et les photos** à chaque
 déploiement — un disque persistant ou une migration PostgreSQL est nécessaire.
 
+## 15 bis. Corrections apportées lors de la vérification de production
+
+Trois défauts réels, invisibles en développement, ont été trouvés et corrigés
+avant ce commit :
+
+1. **Soft 404** — `/properties/<inexistant>` et `/vehicles/<inexistant>`
+   répondaient `200` avec un corps « page introuvable ». Cause : un `loading.tsx`
+   racine (puis de segment) crée une frontière Suspense qui envoie le statut avant
+   que `notFound()` ne s'exécute. Le squelette ne subsiste que sur `/map` (route
+   feuille) ; `smoke` vérifie les deux `404`.
+2. **Boucle de redirection sur la connexion** — `/admin/login` redirigeait vers
+   `/admin/login` : la connexion était **impossible**. Le layout admin exempte
+   désormais la page de connexion (chemin fourni par le middleware).
+3. **Sitemap périmé** — `sitemap.xml` était prégénéré alors qu'il dépend du
+   réglage en base ; après désactivation il annonçait encore les URL de location.
+   Passé en rendu dynamique.
+
 ## 16. Limites connues
 
 1. Pas de déploiement ni de CI.
 2. Base vide : aucune annonce réelle (par choix de ne rien inventer).
-3. Vérification visuelle faite sur HTML rendu, **pas dans un navigateur** :
+3. Vérification visuelle faite sur HTML rendu, **pas dans un navigateur**
+   (aucun navigateur, même sans interface, n'est installable ici) :
    E2E et parité pixel à pixel non vérifiés — **les quatre captures de référence
    annoncées n'ont jamais été transmises**.
 4. Pas d'interface de gestion des comptes ; pas de 2FA ; pas de réinitialisation
@@ -230,7 +273,7 @@ arabe, conformité, recette finale).
 
 ## Conclusion honnête
 
-Le site **fonctionne** : il est typé, testé (131 tests réels), construit pour la
+Le site **fonctionne** : il est typé, testé (161 tests réels), construit pour la
 production, sécurisé et documenté. Il **n'est pas terminé au sens commercial** —
 il n'est pas déployé, ne contient aucune donnée réelle, et plusieurs fonctions
 périphériques (gestion des comptes, notifications, E2E) restent à faire.

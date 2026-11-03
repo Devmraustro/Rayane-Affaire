@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createTempDbEnv, initSchema, type TempDb } from './helpers/temp-db';
 
 /**
@@ -579,6 +579,157 @@ describe('media upload rules', () => {
       new Request(`${ORIGIN}/api/admin/media`, { method: 'POST', headers, body: form }),
     );
     expect(response.status).toBe(401);
+  });
+});
+
+describe('settings endpoint (vehicle rental toggle)', () => {
+  // Each test states its own starting point so ordering cannot mask a failure.
+  beforeEach(async () => {
+    const { setVehicleRentalEnabled } = await import('@/lib/db/settings');
+    setVehicleRentalEnabled(true);
+  });
+
+  const patch = (body: unknown, options: { role?: 'owner' | 'editor'; csrf?: string } = {}) => {
+    const token = options.role === 'editor' ? editorToken : ownerToken;
+    const csrfValue = options.csrf ?? (options.role === 'editor' ? editorCsrf : csrf);
+    const headers = new Headers();
+    headers.set('host', 'localhost:3000');
+    headers.set('origin', ORIGIN);
+    headers.set('content-type', 'application/json');
+    headers.set('cookie', as(token));
+    if (csrfValue !== '') headers.set('x-ra-csrf', csrfValue);
+
+    return import('@/app/api/admin/settings/route').then(({ PATCH }) =>
+      PATCH(
+        new Request(`${ORIGIN}/api/admin/settings`, {
+          method: 'PATCH',
+          headers,
+          body: JSON.stringify(body),
+        }),
+      ),
+    );
+  };
+
+  it('persists the flag and reports the new state', async () => {
+    const response = await patch({ vehicleRentalEnabled: false });
+    expect(response.status).toBe(200);
+    const body = await json(response);
+    const data = body.data as Record<string, unknown>;
+    expect(data.vehicleRentalEnabled).toBe(false);
+    expect(data.changed).toBe(true);
+
+    const { isVehicleRentalEnabled } = await import('@/lib/db/settings');
+    expect(isVehicleRentalEnabled()).toBe(false);
+  });
+
+  it('re-enables it and reports that a change happened', async () => {
+    // Turn it off first, otherwise re-enabling is a no-op and `changed` is false
+    // by design (see the next test).
+    await patch({ vehicleRentalEnabled: false });
+    const response = await patch({ vehicleRentalEnabled: true });
+    expect(response.status).toBe(200);
+    const data = (await json(response)).data as Record<string, unknown>;
+    expect(data.vehicleRentalEnabled).toBe(true);
+    expect(data.changed).toBe(true);
+
+    const { isVehicleRentalEnabled } = await import('@/lib/db/settings');
+    expect(isVehicleRentalEnabled()).toBe(true);
+  });
+
+  it('reports changed=false when the value is unchanged (no spurious audit rows)', async () => {
+    await patch({ vehicleRentalEnabled: true });
+    const response = await patch({ vehicleRentalEnabled: true });
+    const data = (await json(response)).data as Record<string, unknown>;
+    expect(data.changed).toBe(false);
+  });
+
+  it('writes an audit entry with the previous and new value', async () => {
+    await patch({ vehicleRentalEnabled: true });
+    await patch({ vehicleRentalEnabled: false });
+
+    const { getDb } = await import('@/db/client');
+    const latest = getDb()
+      .prepare(
+        `SELECT entity_type, actor_email, detail FROM audit_log
+          WHERE action = 'settings.update' ORDER BY created_at DESC LIMIT 1`,
+      )
+      .get() as { entity_type: string; actor_email: string; detail: string } | undefined;
+
+    expect(latest).toBeDefined();
+    expect(latest!.entity_type).toBe('settings');
+    expect(latest!.actor_email).toBe('owner@test.dz');
+    const detail = JSON.parse(latest!.detail) as Record<string, { from: boolean; to: boolean }>;
+    expect(detail.vehicleRentalEnabled.from).toBe(true);
+    expect(detail.vehicleRentalEnabled.to).toBe(false);
+
+    await patch({ vehicleRentalEnabled: true });
+  });
+
+  it('rejects an editor: hiding a public page is a business decision', async () => {
+    const response = await patch({ vehicleRentalEnabled: false }, { role: 'editor' });
+    expect(response.status).toBe(403);
+    const body = await json(response);
+    expect((body.error as Record<string, unknown>).code).toBe('FORBIDDEN');
+
+    const { isVehicleRentalEnabled } = await import('@/lib/db/settings');
+    expect(isVehicleRentalEnabled()).toBe(true);
+  });
+
+  it('rejects a request without the CSRF header', async () => {
+    const response = await patch({ vehicleRentalEnabled: false }, { csrf: '' });
+    expect(response.status).toBe(403);
+    const body = await json(response);
+    expect((body.error as Record<string, unknown>).code).toBe('CSRF');
+
+    const { isVehicleRentalEnabled } = await import('@/lib/db/settings');
+    expect(isVehicleRentalEnabled()).toBe(true);
+  });
+
+  it('rejects an unauthenticated request', async () => {
+    const { PATCH } = await import('@/app/api/admin/settings/route');
+    const headers = new Headers();
+    headers.set('host', 'localhost:3000');
+    headers.set('origin', ORIGIN);
+    headers.set('content-type', 'application/json');
+    headers.set('x-ra-csrf', csrf);
+    const response = await PATCH(
+      new Request(`${ORIGIN}/api/admin/settings`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ vehicleRentalEnabled: false }),
+      }),
+    );
+    expect(response.status).toBe(401);
+  });
+
+  it('validates the payload: wrong type, unknown key, empty body', async () => {
+    const wrongType = await patch({ vehicleRentalEnabled: 'yes' });
+    expect(wrongType.status).toBe(422);
+    const fields = ((await json(wrongType)).error as Record<string, unknown>)
+      .fields as Record<string, string>;
+    expect(fields.vehicleRentalEnabled).toBe('admin.validation.invalidSetting');
+
+    // `.strict()`: an invented setting must not be silently accepted.
+    expect((await patch({ somethingElse: true })).status).toBe(422);
+    expect((await patch({})).status).toBe(422);
+  });
+
+  it('rejects a malformed JSON body', async () => {
+    const { PATCH } = await import('@/app/api/admin/settings/route');
+    const headers = new Headers();
+    headers.set('host', 'localhost:3000');
+    headers.set('origin', ORIGIN);
+    headers.set('content-type', 'application/json');
+    headers.set('cookie', as(ownerToken));
+    headers.set('x-ra-csrf', csrf);
+    const response = await PATCH(
+      new Request(`${ORIGIN}/api/admin/settings`, {
+        method: 'PATCH',
+        headers,
+        body: '{not json',
+      }),
+    );
+    expect(response.status).toBe(400);
   });
 });
 
