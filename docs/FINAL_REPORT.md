@@ -22,8 +22,9 @@ qui n'a pas été exécuté est explicitement marqué comme non fait.
 | --- | --- |
 | Point de départ | `8f8a982` — *Initial commit* (scaffold Next.js seul) |
 | HEAD avant ce lot | `b42d32e` — `docs: add the final report and correct two build figures` |
-| HEAD de ce lot | commit `feat(admin): make vehicle rental visibility a persisted setting` — **SHA exact dans la pull request #1 et `git log -1`** (un commit ne peut pas contenir son propre condensat, il n'est donc pas recopié ici) |
-| Commits sur la branche | 5 (`8f8a982` → `be9c3af` → `f3539bb` → `ba1cf6b` → `b42d32e` → ce commit) |
+| Commit du lot (code + docs) | **`446df9c`** — `feat(admin): make vehicle rental visibility a persisted setting` |
+| Commits sur la branche | 6 depuis `main` : `8f8a982` → `be9c3af` → `f3539bb` → `ba1cf6b` → `b42d32e` → `446df9c` → le présent commit de documentation |
+| HEAD de la branche | voir la pull request #1 ou `git log -1` : un commit ne peut pas citer son propre condensat |
 | Branche | `arena/c6e4a623-rayane-affaire`, poussée sur `origin` |
 
 ## 4. Pile technique
