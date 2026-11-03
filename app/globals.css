@@ -1,0 +1,288 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ==========================================================================
+   RAYANE AFFAIRE — global styles
+   Premium editorial: warm paper, ink, restrained gold. Logical properties
+   throughout so the same rules work in LTR (fr) and RTL (ar).
+   ========================================================================== */
+
+@layer base {
+  :root {
+    /* Self-hosted-first font stacks. `next/font` variables injected at runtime
+       take precedence; these are the graceful fallbacks and require no network. */
+    --font-sans: 'Inter var', 'Inter', system-ui, -apple-system, 'Segoe UI',
+      'Noto Sans Arabic', 'Tahoma', sans-serif;
+    --font-display: 'Playfair Display', 'Iowan Old Style', 'Palatino Linotype',
+      Palatino, Georgia, 'Noto Naskh Arabic', 'Times New Roman', serif;
+
+    --paper: 255 255 255;
+    --sand-50: 251 250 248;
+    --sand-100: 246 244 240;
+    --sand-200: 237 233 225;
+    --ink: 27 27 29;
+    --gold: 217 166 34;
+  }
+
+  * {
+    @apply border-sand-200;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+    }
+  }
+
+  body {
+    @apply bg-sand-50 text-ink antialiased;
+    font-feature-settings: 'kern', 'liga', 'calt';
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Arabic: slightly larger type and a serif display face with Naskh support. */
+  html[lang='ar'] body {
+    letter-spacing: 0;
+    font-size: 1.02em;
+  }
+
+  html[lang='ar'] h1,
+  html[lang='ar'] h2,
+  html[lang='ar'] h3 {
+    font-family: 'Noto Naskh Arabic', 'Amiri', 'Times New Roman', serif;
+    line-height: 1.5;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-display font-medium tracking-tight text-ink-900;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /* Focus: visible for keyboard users, never for mouse clicks. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-gold-500 ring-offset-2 ring-offset-sand-50;
+  }
+
+  /* Native form controls follow the theme. */
+  input,
+  select,
+  textarea {
+    @apply text-ink;
+  }
+
+  ::selection {
+    @apply bg-gold-200 text-ink-900;
+  }
+}
+
+@layer components {
+  .container-page {
+    @apply container mx-auto;
+  }
+
+  /* Small caps eyebrow used above every section heading. */
+  .eyebrow {
+    @apply inline-flex items-center gap-2 text-2xs font-semibold uppercase tracking-[0.18em] text-gold-700;
+  }
+
+  html[lang='ar'] .eyebrow {
+    @apply tracking-normal;
+  }
+
+  .surface-card {
+    @apply rounded-2xl border border-sand-200 bg-white shadow-card;
+  }
+
+  .surface-muted {
+    @apply rounded-2xl border border-sand-200 bg-sand-100;
+  }
+
+  /* Gold hairline divider used in editorial blocks. */
+  .rule-gold {
+    @apply h-px w-16 bg-gradient-to-r from-gold-500 to-gold-200;
+  }
+
+  html[dir='rtl'] .rule-gold {
+    @apply bg-gradient-to-l from-gold-500 to-gold-200;
+  }
+
+  .link-underline {
+    @apply relative inline-flex items-center gap-1 font-medium text-ink-800 transition-colors hover:text-gold-700;
+  }
+
+  .link-underline::after {
+    content: '';
+    @apply absolute -bottom-0.5 h-px w-0 bg-gold-500 transition-all duration-300 ease-premium;
+    inset-inline-start: 0;
+  }
+
+  .link-underline:hover::after {
+    @apply w-full;
+  }
+
+  /* Prose for listing descriptions (rendered from plain text, never HTML). */
+  .prose-listing {
+    @apply text-[0.975rem] leading-7 text-ink-600;
+  }
+
+  .prose-listing p + p {
+    @apply mt-4;
+  }
+
+  /* Horizontal scroller without a visible scrollbar (filter chips, galleries). */
+  .scroll-x {
+    @apply flex gap-2 overflow-x-auto pb-1;
+    scrollbar-width: none;
+  }
+
+  .scroll-x::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Skip link — first tab stop on every page. */
+  .skip-link {
+    @apply sr-only focus:not-sr-only focus:fixed focus:top-3 focus:z-[60] focus:rounded-full focus:bg-ink-900 focus:px-5 focus:py-2.5 focus:text-sm focus:font-medium focus:text-white;
+    inset-inline-start: 0.75rem;
+  }
+}
+
+@layer utilities {
+  /* Direction-aware helpers: `ms-*`/`me-*` already exist in Tailwind 3.4+, these
+     cover the few places where we flip a physical value. */
+  .flip-x {
+    transform: scaleX(1);
+  }
+
+  html[dir='rtl'] .flip-x {
+    transform: scaleX(-1);
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .gold-gradient-text {
+    @apply bg-gradient-to-r from-gold-700 via-gold-500 to-gold-600 bg-clip-text text-transparent;
+  }
+
+  /* Subtle photographic scrim for hero overlays. */
+  .scrim-ink {
+    background-image: linear-gradient(
+      to top,
+      rgb(16 16 18 / 0.86) 0%,
+      rgb(16 16 18 / 0.55) 38%,
+      rgb(16 16 18 / 0.12) 72%,
+      rgb(16 16 18 / 0.05) 100%
+    );
+  }
+
+  html[dir='rtl'] .scrim-ink {
+    background-image: linear-gradient(
+      to top,
+      rgb(16 16 18 / 0.86) 0%,
+      rgb(16 16 18 / 0.55) 38%,
+      rgb(16 16 18 / 0.12) 72%,
+      rgb(16 16 18 / 0.05) 100%
+    );
+  }
+
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ==========================================================================
+   Leaflet — theme the map without forking the library's CSS.
+   ========================================================================== */
+.leaflet-container {
+  font-family: var(--font-sans);
+  background: #eef1f2;
+  z-index: 0;
+}
+
+.leaflet-container a {
+  color: #946312;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 1rem;
+  box-shadow: 0 18px 44px -20px rgb(16 16 18 / 0.45);
+  padding: 0;
+  overflow: hidden;
+}
+
+.leaflet-popup-content {
+  margin: 0;
+  width: 240px !important;
+  line-height: 1.45;
+}
+
+.leaflet-popup-tip {
+  box-shadow: none;
+}
+
+.ra-marker {
+  display: grid;
+  place-items: center;
+  border-radius: 9999px;
+  background: #1b1b1d;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  border: 2px solid #ffffff;
+  box-shadow: 0 6px 16px -6px rgb(16 16 18 / 0.6);
+}
+
+.ra-marker--exact {
+  background: #946312;
+}
+
+.ra-marker--approximate {
+  background: #b98417;
+}
+
+.ra-marker--commune {
+  background: #63636b;
+  border-style: dashed;
+}
+
+.ra-cluster {
+  display: grid;
+  place-items: center;
+  border-radius: 9999px;
+  background: rgb(27 27 29 / 0.92);
+  color: #fff;
+  font-weight: 600;
+  border: 3px solid #d9a622;
+  box-shadow: 0 8px 22px -10px rgb(16 16 18 / 0.7);
+}
+
+/* Keep the map usable on small screens without hijacking page scroll. */
+.leaflet-container,
+.leaflet-container * {
+  -webkit-tap-highlight-color: transparent;
+}

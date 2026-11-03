@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 640" width="960" height="640" role="img" aria-label="Visuel de démonstration">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F1F6F7"/>
+      <stop offset="1" stop-color="#DDEAEC"/>
+    </linearGradient>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0v48" fill="none" stroke="#C3D9DC" stroke-opacity="0.5" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="960" height="640" fill="url(#bg)"/>
+  <rect width="960" height="640" fill="url(#grid)" opacity="0.55"/>
+  <circle cx="850" cy="90" r="150" fill="#2F6F7A" opacity="0.07"/>
+  <g fill="none" stroke="#C3D9DC" stroke-width="3" stroke-linejoin="round">
+        <rect x="330" y="230" width="180" height="270" rx="6"/>
+        <rect x="510" y="300" width="150" height="200" rx="6"/>
+        <path d="M360 280h30M420 280h30M480 280h0M360 330h30M420 330h30M360 380h30M420 380h30M360 430h30M420 430h30" stroke="#C3D9DC"/>
+        <path d="M540 340h30M600 340h30M540 390h30M600 390h30M540 440h30M600 440h30"/>
+        <path d="M410 500v-46a22 22 0 0 1 44 0v46" stroke="#2F6F7A"/>
+      </g>
+  <g font-family="Georgia, 'Times New Roman', serif" fill="#35353B">
+    <text x="60" y="566" font-size="26" letter-spacing="6" opacity="0.85">RAYANE AFFAIRE</text>
+    <text x="60" y="604" font-size="17" letter-spacing="2" opacity="0.6">Visuel de démonstration · صورة توضيحية</text>
+  </g>
+  <rect x="60" y="60" width="4" height="52" fill="#2F6F7A"/>
+</svg>
