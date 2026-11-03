@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { PublicShell } from '@/components/shared/public-shell';
 import { AboutContent } from '@/components/pages/about-content';
 import { listCommunes } from '@/lib/db/communes';
+import { isVehicleRentalEnabled } from '@/lib/db/settings';
 import { dictionaries } from '@/lib/i18n/dictionaries';
 import { resolveLocale } from '@/lib/i18n/locale';
 import { LOCALE_COOKIE } from '@/lib/config';
@@ -18,7 +19,7 @@ export default function AboutPage() {
   const communes = listCommunes({ activeOnly: true });
   return (
     <PublicShell>
-      <AboutContent communes={communes} />
+      <AboutContent communes={communes} rentalEnabled={isVehicleRentalEnabled()} />
     </PublicShell>
   );
 }

@@ -7,55 +7,81 @@ import { SITE_URL, LOCALE_COOKIE } from '@/lib/config';
 import { I18nProvider } from '@/lib/i18n';
 import { resolveLocale, dirFor } from '@/lib/i18n/locale';
 import { dictionaries } from '@/lib/i18n/dictionaries';
+import { isVehicleRentalEnabled } from '@/lib/db/settings';
 
-export const metadata: Metadata = {
-  metadataBase: new URL(SITE_URL),
-  title: {
-    default: dictionaries.fr.meta.defaultTitle,
-    template: `%s · ${BRAND.name}`,
-  },
-  description: dictionaries.fr.meta.defaultDescription,
-  applicationName: BRAND.name,
-  keywords: [
+/**
+ * Site-wide metadata.
+ *
+ * Built per request rather than exported as a constant so the description and
+ * keywords match what the site actually offers: leaving "location de véhicules"
+ * in the default description would keep advertising a rental service after an
+ * operator switched it off. The route is already dynamic (the locale cookie is
+ * read in the layout), so this costs no extra rendering mode.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  // A database that cannot be read must not break the whole site's metadata.
+  const rentalEnabled = (() => {
+    try {
+      return isVehicleRentalEnabled();
+    } catch {
+      return true;
+    }
+  })();
+  const meta = dictionaries.fr.meta;
+  const description = rentalEnabled ? meta.defaultDescription : meta.defaultDescriptionNoRental;
+  return {
+    metadataBase: new URL(SITE_URL),
+    title: {
+      default: meta.defaultTitle,
+      template: `%s · ${BRAND.name}`,
+    },
+    description,
+    applicationName: BRAND.name,
+    keywords: vehicleKeywords(rentalEnabled),
+    authors: [{ name: BRAND.legalName }],
+    creator: BRAND.legalName,
+    publisher: BRAND.legalName,
+    formatDetection: { telephone: true, address: true, email: true },
+    alternates: {
+      canonical: '/',
+      languages: { fr: '/', ar: '/' },
+    },
+    openGraph: {
+      type: 'website',
+      siteName: BRAND.name,
+      locale: 'fr_DZ',
+      alternateLocale: ['ar_DZ'],
+      title: meta.defaultTitle,
+      description,
+      url: SITE_URL,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: meta.defaultTitle,
+      description,
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: { index: true, follow: true, 'max-image-preview': 'large' },
+    },
+    icons: {
+      icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+    },
+  };
+}
+
+/** Search terms for the offer the agency actually has. */
+function vehicleKeywords(rentalEnabled: boolean): string[] {
+  return [
     'immobilier Béjaïa',
     'location appartement Béjaïa',
     'vente villa Béjaïa',
-    'location voiture Béjaïa',
+    rentalEnabled ? 'location voiture Béjaïa' : 'vente voiture Béjaïa',
     'RAYANE AFFAIRE',
     'عقارات بجاية',
-  ],
-  authors: [{ name: BRAND.legalName }],
-  creator: BRAND.legalName,
-  publisher: BRAND.legalName,
-  formatDetection: { telephone: true, address: true, email: true },
-  alternates: {
-    canonical: '/',
-    languages: { fr: '/', ar: '/' },
-  },
-  openGraph: {
-    type: 'website',
-    siteName: BRAND.name,
-    locale: 'fr_DZ',
-    alternateLocale: ['ar_DZ'],
-    title: dictionaries.fr.meta.defaultTitle,
-    description: dictionaries.fr.meta.defaultDescription,
-    url: SITE_URL,
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: dictionaries.fr.meta.defaultTitle,
-    description: dictionaries.fr.meta.defaultDescription,
-  },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: { index: true, follow: true, 'max-image-preview': 'large' },
-  },
-  icons: {
-    icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
-    apple: [{ url: '/icon.svg' }],
-  },
-};
+  ];
+}
 
 export const viewport: Viewport = {
   themeColor: '#1B1B1D',

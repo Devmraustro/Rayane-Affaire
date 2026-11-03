@@ -63,7 +63,9 @@ export default async function VehiclesPage({ searchParams }: PageProps) {
             <span aria-hidden="true" className="mx-2">
               /
             </span>
-            <span className="text-ink-600">{t.vehicles.title}</span>
+            <span className="text-ink-600">
+              {rentalEnabled ? t.vehicles.title : t.vehicles.titleSaleOnly}
+            </span>
           </nav>
           <h1 className="mt-3 text-3xl sm:text-4xl">
             {rentalEnabled ? t.vehicles.title : t.vehicles.titleSaleOnly}
@@ -104,11 +106,13 @@ export default async function VehiclesPage({ searchParams }: PageProps) {
                 title={rentalEnabled ? t.empty.vehiclesTitle : t.empty.vehiclesSaleTitle}
                 body={rentalEnabled ? t.empty.vehiclesBody : t.empty.vehiclesSaleBody}
                 action={
+                  // Resetting to "/vehicles" would reload the same empty page; the
+                  // useful next step is asking about incoming stock.
                   <Link
-                    href="/vehicles"
+                    href="/contact"
                     className="rounded-full bg-ink-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-ink-800"
                   >
-                    {t.common.reset}
+                    {t.contact.title}
                   </Link>
                 }
               />

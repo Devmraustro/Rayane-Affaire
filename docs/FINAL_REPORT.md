@@ -46,13 +46,27 @@ JSON-LD réel uniquement), pages 404/500/chargement.
 **Back-office** : connexion, vue d'ensemble, biens, véhicules, médias, demandes,
 clients, réservations, calendrier, finances, paramètres, journal d'audit.
 
-**Réglage de visibilité de la location de véhicules** (dernier lot) : l'agence
-déclare depuis `/admin/settings` si elle propose la location. Le choix est
-persisté en base, journalisé (valeur avant/après), et appliqué **côté serveur à
-toutes les surfaces publiques** — menu, catalogue, une, CTA, chiffres, services,
-`sitemap.xml` — tout en laissant **la vente de véhicules et tout l'immobilier
-intacts**. Défaut `true` : aucun changement de comportement pour une base
-existante. Détail : `docs/ARCHITECTURE.md` §9.
+**Réglage de visibilité de la location de véhicules** : l'agence déclare depuis
+`/admin/settings` si elle propose la location. Le choix est persisté en base,
+journalisé (valeur avant/après) et appliqué **côté serveur**. Défaut `true` :
+aucun changement de comportement pour une base existante.
+
+Le réglage suit une règle simple : **il retire la location, jamais la vente.**
+
+| `deal_type` | Location activée | Location désactivée |
+| --- | --- | --- |
+| `sale` | visible, prix de vente | **inchangée** |
+| `rent` | visible, prix/jour | **invisible** (`404`, hors menu et sitemap) |
+| `both` | visible, prix/jour + prix de vente | **visible comme une vente** : prix de vente seul, prix/jour retiré, ligne en base intacte |
+
+Conséquences sur les surfaces publiques quand la location est désactivée : le
+menu propose **« Véhicules à vendre »** (l'entrée n'est retirée que s'il n'y a
+aucun stock à vendre), le catalogue reste joignable et se présente comme un
+catalogue de vente, la une met en avant l'inventaire de vente, les statistiques
+comptent ce même inventaire, le `sitemap.xml` conserve `/vehicles` et les fiches
+de vente. Disparaissent : CTA de location, carte de service location, filtre de
+type `rent`/`both`, action de réservation, mentions de location dans les
+métadonnées et les textes de présentation. Détail : `docs/ARCHITECTURE.md` §9.
 
 **Non livré** (assumé, voir §9) : interface de gestion des comptes (rôles et
 autorisations en place), 2FA, réinitialisation de mot de passe, notifications,
@@ -168,19 +182,20 @@ Risques résiduels et points ouverts : `docs/SECURITY_AUDIT.md` §9.
 
 | Résultat | Détail |
 | --- | --- |
-| **161 / 161 réussis** | 8 fichiers, ~4,3 s, exécution réelle |
+| **175 / 175 réussis** | 8 fichiers, ~5 s, exécution réelle |
 | 0 désactivé | aucun `skip`, `todo` ou assertion retirée |
-| 85 unitaires / 76 intégration | intégration = vraie base SQLite + vrais gestionnaires de route |
+| 92 unitaires / 83 intégration | intégration = vraie base SQLite + vrais gestionnaires de route |
 
 Répartition : validation 20 · filtres 11 · formatage 13 · i18n/RTL 14 ·
-sécurité 21 · base de données 20 · API 41 · **réglage de la location 21**.
+sécurité 21 · base de données 20 · API 41 · **réglage de la location 35**.
 
-Les 30 tests ajoutés depuis le premier rapport couvrent le réglage de visibilité
-de la location de véhicules : 21 tests de comportement (défaut, lecture
-défaillante, filtre, visibilité publique dans les deux états, non-régression de
-la vente et de l'immobilier) et 9 tests de l'endpoint `PATCH /api/admin/settings`
-(autorisation, CSRF, validation stricte, persistance, audit avant/après,
-`changed=false` sans écriture).
+Les 44 tests ajoutés depuis le premier rapport couvrent le réglage de visibilité
+de la location : 35 tests de comportement (défaut, lecture défaillante,
+catalogue, fiches, projection de `both`, navigation, sitemap, statistiques,
+surfaces de location masquées, non-régression de la vente et de l'immobilier)
+et 9 tests de l'endpoint `PATCH /api/admin/settings` (autorisation, CSRF,
+validation stricte, persistance, audit avant/après, `changed=false` sans
+écriture).
 
 **Non couvert** (déclaré) : navigateur/E2E, rendu visuel, carte interactive,
 envoi d'e-mail, charge, test d'intrusion — voir `docs/TESTING_REPORT.md` §6.
@@ -274,7 +289,7 @@ arabe, conformité, recette finale).
 
 ## Conclusion honnête
 
-Le site **fonctionne** : il est typé, testé (161 tests réels), construit pour la
+Le site **fonctionne** : il est typé, testé (175 tests réels), construit pour la
 production, sécurisé et documenté. Il **n'est pas terminé au sens commercial** —
 il n'est pas déployé, ne contient aucune donnée réelle, et plusieurs fonctions
 périphériques (gestion des comptes, notifications, E2E) restent à faire.

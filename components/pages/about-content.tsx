@@ -22,7 +22,14 @@ const VALUES = {
   ],
 } as const;
 
-export function AboutContent({ communes }: { communes: Commune[] }) {
+export function AboutContent({
+  communes,
+  rentalEnabled = true,
+}: {
+  communes: Commune[];
+  /** Rental is part of the agency's story, so the copy follows the setting. */
+  rentalEnabled?: boolean;
+}) {
   const { t, locale, pick } = useI18n();
   const values = VALUES[locale];
 
@@ -38,10 +45,16 @@ export function AboutContent({ communes }: { communes: Commune[] }) {
                 {locale === 'ar'
                   ? 'ريان أعمال وكالة مستقلة تأسست سنة ' +
                     B.establishedYear +
-                    ' وتعمل في ولاية بجاية. نجمع بين العقارات وكراء السيارات لأن العميل نفسه غالباً يحتاج الاثنين في نفس الفترة.'
+                    ' وتعمل في ولاية بجاية. نجمع بين العقارات ' +
+                    (rentalEnabled ? 'وكراء السيارات' : 'وبيع السيارات') +
+                    ' لأن العميل نفسه غالباً يحتاج الاثنين في نفس الفترة.'
                   : 'RAYANE AFFAIRE est une agence indépendante fondée en ' +
                     B.establishedYear +
-                    ', active dans la wilaya de Béjaïa. Nous réunissons l’immobilier et la location de véhicules parce que le même client a souvent besoin des deux au même moment.'}
+                    ', active dans la wilaya de Béjaïa. Nous réunissons l’immobilier et ' +
+                    (rentalEnabled
+                      ? 'la location de véhicules'
+                      : 'la vente de véhicules') +
+                    ' parce que le même client a souvent besoin des deux au même moment.'}
               </p>
               <p className="mt-3 text-[0.9375rem] leading-relaxed text-ink-500">
                 {locale === 'ar'

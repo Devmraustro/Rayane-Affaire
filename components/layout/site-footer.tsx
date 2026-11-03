@@ -24,13 +24,19 @@ import type { Commune } from '@/types';
 export function SiteFooter({
   communes,
   rentalEnabled = true,
+  hasSaleInventory = true,
 }: {
   communes: Commune[];
-  /** When false, the vehicle section is omitted from the footer navigation. */
+  /**
+   * When false, the footer offers vehicle *sales* instead of rental — and drops
+   * the entry entirely if there is no sale inventory to show.
+   */
   rentalEnabled?: boolean;
+  /** Whether the sale catalogue has published real listings. */
+  hasSaleInventory?: boolean;
 }) {
   const { t, locale, pick } = useI18n();
-  const navItems = primaryNavFor({ rentalEnabled });
+  const navItems = primaryNavFor({ rentalEnabled, hasSaleInventory });
   const year = new Date().getFullYear();
   const hasContact = Boolean(PHONE_NUMBER || CONTACT_EMAIL || OFFICE_ADDRESS || WHATSAPP_NUMBER);
 

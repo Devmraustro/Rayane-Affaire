@@ -60,10 +60,11 @@ désactiver ou changer le rôle d'un compte. À construire dans
 
 ### A5. Couverture de tests à compléter
 
-Déjà couvert depuis le dernier lot : le réglage de location de véhicules
-(`tests/vehicle-rental-setting.test.ts`, 21 tests) et l'endpoint
-`PATCH /api/admin/settings` (9 tests dans `tests/api.test.ts`), soit
-**161 tests au total**.
+Déjà couvert : le réglage de location de véhicules
+(`tests/vehicle-rental-setting.test.ts`, 35 tests — politique par `deal_type`,
+projection de `both` en vente, navigation, sitemap, statistiques, surfaces de
+location masquées) et l'endpoint `PATCH /api/admin/settings` (9 tests dans
+`tests/api.test.ts`), soit **175 tests au total**.
 
 - Tests de `lib/db/inquiries`, `reservations`, `customers` (création, mises à
   jour, filtres de période).

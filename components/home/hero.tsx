@@ -19,10 +19,13 @@ import type { Commune } from '@/types';
 export function Hero({
   communes,
   rentalEnabled = true,
+  hasSaleInventory = false,
 }: {
   communes: Commune[];
   /** When false the secondary "rent a vehicle" call to action is omitted. */
   rentalEnabled?: boolean;
+  /** Whether the sale catalogue has stock, so the secondary CTA leads somewhere. */
+  hasSaleInventory?: boolean;
 }) {
   const { t, locale } = useI18n();
   const Arrow = locale === 'ar' ? ArrowLeft : ArrowRight;
@@ -66,14 +69,18 @@ export function Hero({
                 <Arrow aria-hidden="true" />
               </Link>
             </Button>
-            {rentalEnabled && (
+            {/* With rental off the secondary CTA still points at the sale
+                catalogue — but only when there is sale stock to show. */}
+            {(rentalEnabled || hasSaleInventory) && (
               <Button
                 asChild
                 size="lg"
                 variant="outline"
                 className="border-white/25 bg-white/10 text-white backdrop-blur-sm hover:border-white/40 hover:bg-white/15 hover:text-white"
               >
-                <Link href="/vehicles">{t.home.heroCtaSecondary}</Link>
+                <Link href="/vehicles">
+                  {rentalEnabled ? t.home.heroCtaSecondary : t.home.heroCtaVehicleSales}
+                </Link>
               </Button>
             )}
           </div>

@@ -12,6 +12,9 @@ export const ar: Dictionary = {
     defaultTitle: 'ريان أعمال — عقارات وسيارات في بجاية',
     defaultDescription:
       'كراء وبيع العقارات، الشقق المفروشة للإقامة القصيرة وكراء السيارات في ولاية بجاية. إعلانات مُعاينة وأسعار معلنة.',
+    // Site-wide description when the agency does not rent vehicles.
+    defaultDescriptionNoRental:
+      'كراء وبيع العقارات، والشقق المفروشة للإقامة القصيرة وبيع السيارات في ولاية بجاية. إعلانات معاينة وأسعار معلنة.',
     propertiesTitle: 'العقارات',
     vehiclesTitle: 'السيارات',
     mapTitle: 'خريطة العقارات',
@@ -25,6 +28,8 @@ export const ar: Dictionary = {
     home: 'الرئيسية',
     properties: 'العقارات',
     vehicles: 'السيارات',
+    // Used when the agency has no rental service but does sell vehicles.
+    vehicleSales: 'سيارات للبيع',
     map: 'الخريطة',
     services: 'الخدمات',
     about: 'من نحن',
@@ -169,6 +174,8 @@ export const ar: Dictionary = {
       'كراء سنوي، شقق مفروشة للإقامة القصيرة، بيع وكراء سيارات. كل إعلان يُعاين من طرف فريقنا قبل النشر.',
     heroCtaPrimary: 'استكشف العقارات',
     heroCtaSecondary: 'اكتري سيارة',
+    // Secondary CTA when the agency sells vehicles but does not rent them.
+    heroCtaVehicleSales: 'سيارات للبيع',
     searchTitle: 'بحث سريع',
     searchTransaction: 'نوع المعاملة',
     searchCategory: 'نوع العقار',
@@ -185,6 +192,9 @@ export const ar: Dictionary = {
     featuredPropertiesSub: 'مجموعة من العقارات المُعاينة والمتاحة فوراً.',
     featuredVehicles: 'سيارات مميزة',
     featuredVehiclesSub: 'سيارات مُعاينة وجاهزة للسفر.',
+    // Shown when the agency sells vehicles but does not rent them.
+    featuredVehicleSales: 'سيارات مميزة للبيع',
+    featuredVehicleSalesSub: 'مجموعة مختارة من السيارات المعروضة للبيع.',
     noFeaturedProperties: 'لا يوجد عقار منشور حالياً.',
     noFeaturedPropertiesSub: 'ستظهر الإعلانات الأولى هنا بمجرد نشرها.',
     noFeaturedVehicles: 'لا توجد سيارة منشورة حالياً.',
@@ -271,6 +281,8 @@ export const ar: Dictionary = {
       rentalPrice: 'ثمن الكراء',
       salePrice: 'ثمن البيع',
       pickup: 'مكان التسليم',
+      // Neutral label for a sale listing, where there is nothing to pick up.
+      location: 'البلدية',
       reserveCta: 'حجز هذه السيارة',
       contactCta: 'طلب عرض سعر',
       similar: 'سيارات مشابهة',
@@ -599,7 +611,7 @@ export const ar: Dictionary = {
       vehicleRental: {
         title: 'كراء السيارات',
         body:
-          'حدّد ما إذا كان المكتب يقدّم فعلياً خدمة كراء السيارات (أسطول خاص أو شريك). عند تعطيل هذا الخيار، لن تعرض القائمة والدليل والصفحة الرئيسية وخطة الموقع أي عرض للكراء.',
+          'حدّد ما إذا كانت الوكالة توفّر فعلا كراء السيارات (أسطول خاص أو شريك). عند التعطيل تُزال إعلانات الكراء وإجراءات الكراء، لكن يبقى البيع: تعرض القائمة «سيارات للبيع»، ويواصل الكتالوج والصفحة الرئيسية والإحصائيات وخطة الموقع عرض السيارات المعروضة للبيع. الإعلان «كراء وبيع» يبقى ظاهرا كبيع دون سعر الكراء.',
         on: 'الكراء مُفعَّل',
         off: 'الكراء مُعطَّل',
         onHint: 'السيارات المتاحة للكراء تظهر في الموقع العام.',

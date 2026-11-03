@@ -24,9 +24,10 @@ export function StatsBand({
   t: Dictionary;
   locale: Locale;
   /**
-   * When rental is off, the vehicle figure is dropped rather than shown as a
-   * zero: "0 véhicule" would read as an empty rental fleet instead of "we do not
-   * rent vehicles".
+   * When rental is off the vehicle tile stays: it now counts the *sale* stock the
+   * visitor can browse, so dropping it would under-report real inventory. The tile
+   * is only omitted when that count is zero — "0 véhicule" would read as an empty
+   * fleet rather than "nothing for sale right now".
    */
   rentalEnabled?: boolean;
 }) {
@@ -50,7 +51,11 @@ export function StatsBand({
     { key: 'communes', value: stats.coveredCommunes, label: t.home.statsCommunes, icon: MapPin },
     { key: 'available', value: stats.availableNow, label: t.home.statsAvailableNow, icon: CheckCircle2 },
   ] as const;
-  const items = allItems.filter((item) => rentalEnabled || item.key !== 'vehicles');
+  // Rental off ⇒ the vehicle tile reflects sale inventory; hide it only when
+  // there is genuinely nothing to count.
+  const items = allItems.filter(
+    (item) => item.key !== 'vehicles' || rentalEnabled || item.value > 0,
+  );
 
   return (
     <dl

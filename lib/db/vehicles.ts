@@ -9,20 +9,25 @@ import {
 } from './mappers';
 import type { Paginated, Vehicle, VehicleFilters, VehicleSummary } from '@/types';
 import { isVehicleRentalEnabled } from './settings';
-import { RENTABLE_DEAL_TYPES } from '@/lib/settings';
+import { SAFE_PROJECTION_SQL, projectVehicleForPublic } from '@/lib/settings';
 
 /**
  * Vehicle repository — mirrors `lib/db/properties.ts` semantics.
  *
  * Rental visibility: when the agency has no rental service (own fleet or
  * partner), every reader that serves the *public* surface takes `rentalEnabled`
- * and excludes vehicles whose `deal_type` is rentable. Sale-only listings are
- * never filtered out — the brief is explicit that hiding rental must not hide
- * sales.
+ * and drops rental-only listings. Sale inventory stays fully discoverable —
+ * catalogue, navigation, homepage spotlight, statistics and sitemap — because
+ * hiding rental must not hide sales.
  *
- * Admin readers pass `includeRentalOnly: true` (see `lib/db/admin-listings.ts`),
- * so an operator keeps working with the full inventory while the public site is
- * narrowed.
+ * A `both` listing is treated as what it is: a sale listing that also offered
+ * rental. With rental off it survives as a sale listing and its rental price is
+ * withheld through `projectVehicleForPublic`. That is a *projection*: no row is
+ * updated, so flipping the setting back restores the original presentation
+ * exactly.
+ *
+ * Admin readers (see `lib/db/admin-listings.ts`) query the table directly and are
+ * unaffected, so an operator keeps working with the full inventory.
  */
 
 /** Re-exported so server callers keep a single import site (see lib/filters.ts). */
@@ -31,6 +36,15 @@ export { defaultVehicleFilters } from '@/lib/filters';
 interface WhereClause {
   sql: string;
   params: (string | number)[];
+}
+
+/**
+ * `AND`-prefixed form of the public projection, for query strings that already
+ * have a `WHERE` clause. The bare form is used as its own where-clause in
+ * `buildVehicleWhere`.
+ */
+function withProjection(rentalEnabled: boolean): string {
+  return rentalEnabled ? '' : ` AND ${SAFE_PROJECTION_SQL}`;
 }
 
 export function buildVehicleWhere(
@@ -42,11 +56,9 @@ export function buildVehicleWhere(
 
   if (scope.includeDemo === false) clauses.push('v.is_demo = 0');
 
-  // Rental switched off ⇒ drop rentable listings (`rent` and `both`), keep sales.
-  if (scope.rentalEnabled === false) {
-    clauses.push(`v.deal_type NOT IN (${RENTABLE_DEAL_TYPES.map(() => '?').join(',')})`);
-    params.push(...RENTABLE_DEAL_TYPES);
-  }
+  // Rental switched off ⇒ drop rental-only listings but keep every sale listing,
+  // including `both` rows that still carry a sale price. See SAFE_PROJECTION_SQL.
+  if (scope.rentalEnabled === false) clauses.push(SAFE_PROJECTION_SQL);
 
   if (filters.query.trim()) {
     const like = `%${filters.query.trim().toLowerCase()}%`;
@@ -123,7 +135,23 @@ type VehicleJoinedRow = VehicleRow & {
   c_name_ar: string;
 };
 
-function toSummary(row: VehicleJoinedRow, thumb: MediaRow | undefined): VehicleSummary {
+/**
+ * Builds the public summary from a row plus its public projection.
+ *
+ * The projection is applied *before* the prices are copied, so a `both` listing
+ * presented as a sale cannot fall back to showing a per-day price: `VehicleCard`
+ * keys its price label off `dealType`.
+ */
+function toSummary(
+  row: VehicleJoinedRow,
+  thumb: MediaRow | undefined,
+  rentalEnabled: boolean,
+): VehicleSummary {
+  const view = projectVehicleForPublic(
+    { dealType: row.deal_type, dailyPrice: row.daily_price, salePrice: row.sale_price },
+    rentalEnabled,
+  );
+  const dealType = view.dealType as VehicleSummary['dealType'];
   return {
     id: row.id,
     slug: row.slug,
@@ -136,9 +164,9 @@ function toSummary(row: VehicleJoinedRow, thumb: MediaRow | undefined): VehicleS
     transmission: row.transmission as VehicleSummary['transmission'],
     fuel: row.fuel as VehicleSummary['fuel'],
     seats: row.seats,
-    dealType: row.deal_type as VehicleSummary['dealType'],
-    dailyPrice: row.daily_price,
-    salePrice: row.sale_price,
+    dealType,
+    dailyPrice: view.dailyPrice,
+    salePrice: view.salePrice,
     currency: 'DZD',
     isDemo: row.is_demo === 1,
     commune: {
@@ -160,10 +188,8 @@ export function listVehicles(
   const db = getDb();
   // Default to the persisted setting so no caller can accidentally widen the
   // public surface by forgetting to pass it.
-  const where = buildVehicleWhere(filters, {
-    ...scope,
-    rentalEnabled: scope.rentalEnabled ?? isVehicleRentalEnabled(),
-  });
+  const rentalEnabled = scope.rentalEnabled ?? isVehicleRentalEnabled();
+  const where = buildVehicleWhere(filters, { ...scope, rentalEnabled });
   const total = (
     db
       .prepare(
@@ -186,7 +212,7 @@ export function listVehicles(
 
   const thumbs = thumbnailsFor(rows.map((r) => r.id));
   return {
-    items: rows.map((row) => toSummary(row, thumbs.get(row.id))),
+    items: rows.map((row) => toSummary(row, thumbs.get(row.id), rentalEnabled)),
     total,
     page,
     pageSize,
@@ -194,7 +220,7 @@ export function listVehicles(
   };
 }
 
-function hydrate(row: VehicleRow): Vehicle | null {
+function hydrate(row: VehicleRow, rentalEnabled: boolean): Vehicle | null {
   const db = getDb();
   const commune = db.prepare('SELECT * FROM communes WHERE id = ?').get(row.commune_id) as
     | CommuneRow
@@ -208,6 +234,12 @@ function hydrate(row: VehicleRow): Vehicle | null {
       )
       .all(row.id) as unknown as MediaRow[]
   ).map(rowToMedia);
+  // Same projection as the list view: a `both` listing shown as a sale must not
+  // print a rental price, and the badge must say "à vendre".
+  const view = projectVehicleForPublic(
+    { dealType: row.deal_type, dailyPrice: row.daily_price, salePrice: row.sale_price },
+    rentalEnabled,
+  );
   return {
     id: row.id,
     slug: row.slug,
@@ -222,9 +254,9 @@ function hydrate(row: VehicleRow): Vehicle | null {
     fuel: row.fuel as Vehicle['fuel'],
     seats: row.seats,
     doors: row.doors,
-    dealType: row.deal_type as Vehicle['dealType'],
-    dailyPrice: row.daily_price,
-    salePrice: row.sale_price,
+    dealType: view.dealType as Vehicle['dealType'],
+    dailyPrice: view.dailyPrice,
+    salePrice: view.salePrice,
     currency: 'DZD',
     isDemo: row.is_demo === 1,
     registrationYearVerified: true,
@@ -254,26 +286,32 @@ export function getVehicleBySlug(
   scope: { includeDemo?: boolean; rentalEnabled?: boolean } = {},
 ): Vehicle | null {
   const rentalEnabled = scope.rentalEnabled ?? isVehicleRentalEnabled();
+  // Rental off ⇒ a rental-only listing has no public page (404). A `both` listing
+  // stays reachable as a sale listing, with its rental price projected away.
   const rentalClause = rentalEnabled
     ? ''
-    : ` AND deal_type NOT IN (${RENTABLE_DEAL_TYPES.map(() => '?').join(',')})`;
+    : ` AND (deal_type IN ('sale','both') AND sale_price IS NOT NULL)`;
   const row = getDb()
     .prepare(
-      `SELECT * FROM vehicles WHERE slug = ? AND status = 'published'${
+      `SELECT * FROM vehicles AS v WHERE slug = ? AND status = 'published'${
         scope.includeDemo === false ? ' AND is_demo = 0' : ''
       }${rentalClause}`,
     )
-    .get(
-      ...(rentalEnabled ? [slug] : [slug, ...RENTABLE_DEAL_TYPES]),
-    ) as VehicleRow | undefined;
-  return row ? hydrate(row) : null;
+    .get(slug) as VehicleRow | undefined;
+  return row ? hydrate(row, rentalEnabled) : null;
 }
 
+/**
+ * Admin read: the full, unprojected record.
+ *
+ * `rentalEnabled: true` is not a public-visibility decision here — it disables the
+ * projection so the operator always sees the real deal type and both prices.
+ */
 export function getVehicleById(id: string): Vehicle | null {
   const row = getDb().prepare('SELECT * FROM vehicles WHERE id = ?').get(id) as
     | VehicleRow
     | undefined;
-  return row ? hydrate(row) : null;
+  return row ? hydrate(row, true) : null;
 }
 
 export function listFeaturedVehicles(
@@ -282,21 +320,17 @@ export function listFeaturedVehicles(
 ): VehicleSummary[] {
   const db = getDb();
   const rentalEnabled = scope.rentalEnabled ?? isVehicleRentalEnabled();
-  const rentalClause = rentalEnabled
-    ? ''
-    : ` AND v.deal_type NOT IN (${RENTABLE_DEAL_TYPES.map(() => '?').join(',')})`;
-  const params: (string | number)[] = rentalEnabled ? [limit] : [...RENTABLE_DEAL_TYPES, limit];
   const rows = db
     .prepare(
       `SELECT v.*, c.id AS c_id, c.slug AS c_slug, c.name_fr AS c_name_fr, c.name_ar AS c_name_ar
        FROM vehicles v JOIN communes c ON c.id = v.commune_id
-       WHERE v.status = 'published'${rentalClause}
+       WHERE v.status = 'published'${withProjection(rentalEnabled)}
        ORDER BY v.featured DESC, v.published_at DESC, v.created_at DESC
        LIMIT ?`,
     )
-    .all(...params) as unknown as VehicleJoinedRow[];
+    .all(limit) as unknown as VehicleJoinedRow[];
   const thumbs = thumbnailsFor(rows.map((r) => r.id));
-  return rows.map((row) => toSummary(row, thumbs.get(row.id)));
+  return rows.map((row) => toSummary(row, thumbs.get(row.id), rentalEnabled));
 }
 
 export function listSimilarVehicles(
@@ -306,25 +340,42 @@ export function listSimilarVehicles(
 ): VehicleSummary[] {
   const db = getDb();
   const rentalEnabled = scope.rentalEnabled ?? isVehicleRentalEnabled();
-  const rentalClause = rentalEnabled
-    ? ''
-    : ` AND v.deal_type NOT IN (${RENTABLE_DEAL_TYPES.map(() => '?').join(',')})`;
-  const rentalParams: string[] = rentalEnabled ? [] : [...RENTABLE_DEAL_TYPES];
   const rows = db
     .prepare(
       `SELECT v.*, c.id AS c_id, c.slug AS c_slug, c.name_fr AS c_name_fr, c.name_ar AS c_name_ar
        FROM vehicles v JOIN communes c ON c.id = v.commune_id
-       WHERE v.status = 'published' AND v.id <> ?${rentalClause}
-       ORDER BY (v.category = ?) DESC, ABS(COALESCE(v.daily_price, v.sale_price, 0) - ?) ASC
+       WHERE v.status = 'published' AND v.id <> ?${withProjection(rentalEnabled)}
+       ORDER BY (v.category = ?) DESC, ABS(COALESCE(v.sale_price, v.daily_price, 0) - ?) ASC
        LIMIT ?`,
     )
     .all(
       vehicle.id,
-      ...rentalParams,
       vehicle.category,
-      vehicle.dailyPrice ?? vehicle.salePrice ?? 0,
+      vehicle.salePrice ?? vehicle.dailyPrice ?? 0,
       limit,
     ) as unknown as VehicleJoinedRow[];
   const thumbs = thumbnailsFor(rows.map((r) => r.id));
-  return rows.map((row) => toSummary(row, thumbs.get(row.id)));
+  return rows.map((row) => toSummary(row, thumbs.get(row.id), rentalEnabled));
+}
+
+/**
+ * How many published sale vehicles the public can reach.
+ *
+ * Navigation needs this to decide whether a "for sale" link leads anywhere: with
+ * rental off and no sale inventory the entry would open an empty catalogue, which
+ * is worse than no entry at all. Real (non-demonstration) rows only — a link to
+ * demonstration stock would advertise inventory the agency does not have.
+ *
+ * Takes the flag as an argument so callers that already read it do not pay for a
+ * second settings lookup, and so tests can drive both states explicitly.
+ */
+export function countPublicSaleVehicles(rentalEnabled: boolean): number {
+  const clause = withProjection(rentalEnabled);
+  const row = getDb()
+    .prepare(
+      `SELECT COUNT(*) AS n FROM vehicles v
+       WHERE v.status = 'published' AND v.is_demo = 0${clause}`,
+    )
+    .get() as { n: number };
+  return row.n;
 }

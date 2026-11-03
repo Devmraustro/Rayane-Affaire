@@ -51,15 +51,28 @@ export function FeaturedProperties({ items }: { items: PropertySummary[] }) {
   );
 }
 
-export function FeaturedVehicles({ items }: { items: VehicleSummary[] }) {
+/**
+ * Homepage vehicle spotlight.
+ *
+ * With rental off the same block advertises vehicle *sales*: the heading and the
+ * "see all" label change, so the section never promises a rental offer the
+ * agency does not have.
+ */
+export function FeaturedVehicles({
+  items,
+  rentalEnabled = true,
+}: {
+  items: VehicleSummary[];
+  rentalEnabled?: boolean;
+}) {
   const { t, dir } = useI18n();
   return (
     <section className="border-y border-sand-200 bg-white py-16 sm:py-20 lg:py-24">
       <div className="container-page">
         <SectionHeading
-          eyebrow={t.nav.vehicles}
-          title={t.home.featuredVehicles}
-          lede={t.home.featuredVehiclesSub}
+          eyebrow={rentalEnabled ? t.nav.vehicles : t.nav.vehicleSales}
+          title={rentalEnabled ? t.home.featuredVehicles : t.home.featuredVehicleSales}
+          lede={rentalEnabled ? t.home.featuredVehiclesSub : t.home.featuredVehicleSalesSub}
           action={{ href: '/vehicles', label: t.common.showAll }}
           rtl={dir === 'rtl'}
         />

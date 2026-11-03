@@ -188,20 +188,56 @@ components/admin/vehicle-rental-toggle.tsx   interface (role="switch")
 Le drapeau est lu par `PublicShell` (une fois par page publique) et transmis aux
 menus, puis par chaque lecteur qui sert des véhicules :
 
-| Couche | Filtre appliqué quand la location est désactivée |
+| Couche | Effet quand la location est désactivée |
 | --- | --- |
-| `buildVehicleWhere` | `deal_type NOT IN ('rent','both')` — la vente n'est jamais filtrée |
-| `getVehicleBySlug` | même clause ⇒ `404` pour une annonce de location |
-| `listFeaturedVehicles` | même clause ⇒ pas de bloc « véhicules » en une |
-| `listSimilarVehicles` | même clause ⇒ pas de location suggérée |
-| `getPublicStats` | même clause ⇒ chiffres alignés sur le catalogue |
-| `sitemap.ts` | `/vehicles` et les fiches retirés |
+| `buildVehicleWhere` | exclut les annonces **uniquement** de location (`rent`) ; conserve `sale` **et** `both` |
+| `getVehicleBySlug` | même règle ⇒ `404` pour une annonce `rent` ; `sale` et `both` restent accessibles |
+| `listFeaturedVehicles` | même règle ⇒ la une montre l'inventaire de vente |
+| `listSimilarVehicles` | même règle ⇒ pas de location suggérée |
+| `getPublicStats` | compte l'inventaire de vente réellement visible |
+| `countPublicSaleVehicles` | alimente le menu, le CTA du héros et le sitemap |
+| `sitemap.ts` | `/vehicles` et les fiches de vente restent listés ; les URL de location disparaissent |
 
-`RENTABLE_DEAL_TYPES` (`rent`, `both`) est la seule définition de « louable » :
-`both` compte comme louable puisqu'une telle annonce est proposée au moins en
-partie en location. Les lecteurs d'administration (`listAdminVehicles`,
-`getVehicleById`) ne filtrent pas : l'opérateur doit continuer à gérer tout son
-inventaire.
+### Ce que « conserver la vente » veut dire exactement
+
+Une première version désactivait la location en retirant **toute** la surface
+véhicules : entrée de menu, bloc de la une, URL du sitemap. Les annonces de vente
+restaient en base mais devenaient introuvables — le réglage masquait donc la
+vente, contrairement à l'exigence. Comportement actuel, par type d'annonce :
+
+| `deal_type` | Location activée | Location désactivée |
+| --- | --- | --- |
+| `sale` | visible, prix de vente | **visible à l'identique** |
+| `rent` | visible, prix/jour | **invisible** (`404`, hors menu, hors sitemap) |
+| `both` | visible, prix/jour **et** prix de vente | **visible comme une vente** : badge « Vente », prix de vente seul, prix/jour retiré |
+
+La projection de `both` est une **vue**, pas une écriture : `projectVehicleForPublic`
+(`lib/settings.ts`) transforme `{dealType:'both', dailyPrice, salePrice}` en
+`{dealType:'sale', dailyPrice:null, salePrice}` au moment du rendu public. La ligne
+en base conserve `deal_type='both'` et ses deux prix, donc réactiver la location
+restaure l'affichage d'origine sans migration ni perte de donnée. Les lecteurs
+d'administration (`getVehicleById`, `listAdminVehicles`) ne projettent jamais :
+l'opérateur voit toujours le type réel et les deux prix.
+
+`both` ne peut pas exister sans prix de vente : la table impose
+`CHECK (deal_type <> 'both' OR (daily_price IS NOT NULL AND sale_price IS NOT NULL))`.
+La requête publique revérifie tout de même `sale_price IS NOT NULL`
+(`SAFE_PROJECTION_SQL`) — défense en profondeur si un jour la contrainte était
+assouplie.
+
+### Conséquence sur la navigation et le référencement
+
+Le menu ne peut pas être simplement « avec » ou « sans » entrée véhicules :
+
+| Situation | Menu | Sitemap |
+| --- | --- | --- |
+| Location activée | « Véhicules » → `/vehicles` | `/vehicles` + fiches |
+| Location désactivée, stock de vente présent | « Véhicules à vendre » → `/vehicles` | `/vehicles` + fiches de vente |
+| Location désactivée, aucun stock de vente | entrée retirée | `/vehicles` absent |
+
+Le libellé change parce que la promesse change : un lien « Véhicules » ouvrant un
+catalogue sans location serait trompeur. L'entrée n'est retirée que lorsqu'il n'y
+a réellement rien à vendre, pour ne pas mener à un catalogue vide.
 
 ### Piège à connaître : `loading.tsx` et les codes de statut
 

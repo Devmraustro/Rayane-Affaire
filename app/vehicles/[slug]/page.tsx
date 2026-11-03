@@ -53,7 +53,7 @@ export default async function VehicleDetailPage({ params }: PageProps) {
 
   return (
     <PublicShell>
-      <VehicleDetail vehicle={vehicle} similar={similar} />
+      <VehicleDetail vehicle={vehicle} similar={similar} rentalEnabled={rentalEnabled} />
     </PublicShell>
   );
 }

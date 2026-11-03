@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next';
 import { SITE_URL } from '@/lib/config';
 import { listProperties } from '@/lib/db/properties';
-import { listVehicles } from '@/lib/db/vehicles';
+import { countPublicSaleVehicles, listVehicles } from '@/lib/db/vehicles';
 import { defaultPropertyFilters } from '@/lib/db/properties';
 import { defaultVehicleFilters } from '@/lib/db/vehicles';
 import { isVehicleRentalEnabled } from '@/lib/db/settings';
@@ -17,11 +17,22 @@ import { isVehicleRentalEnabled } from '@/lib/db/settings';
  */
 export const dynamic = 'force-dynamic';
 export default function sitemap(): MetadataRoute.Sitemap {
-  // With no rental service, neither the vehicle catalogue nor its listings are
-  // reachable, so advertising them to crawlers would only produce 404s.
+  // The catalogue is advertised whenever it has something to show. With rental
+  // off it is a *sale* catalogue: `/vehicles` and the sale listings stay in the
+  // sitemap (hiding sale stock would defeat the purpose of the setting), while
+  // rental-only listings are excluded because they answer 404.
   const rentalEnabled = isVehicleRentalEnabled();
+  let saleInventory = 0;
+  try {
+    saleInventory = countPublicSaleVehicles(rentalEnabled);
+  } catch {
+    // A missing/unmigrated database must not break the sitemap endpoint.
+    saleInventory = 0;
+  }
+  const catalogueReachable = rentalEnabled || saleInventory > 0;
+
   const paths = ['', '/properties', '/map', '/services', '/about', '/contact', '/credits'];
-  if (rentalEnabled) paths.splice(2, 0, '/vehicles');
+  if (catalogueReachable) paths.splice(2, 0, '/vehicles');
 
   const staticRoutes = paths.map(
     (path) => ({
@@ -37,8 +48,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
       { ...defaultPropertyFilters(), pageSize: 60 },
       { includeDemo: false },
     );
-    const vehicles = rentalEnabled
-      ? listVehicles({ ...defaultVehicleFilters(), pageSize: 60 }, { includeDemo: false })
+    // Passing `rentalEnabled` applies the public projection: with rental off this
+    // lists sale and saleable `both` rows only, never rental-only ones.
+    const vehicles = catalogueReachable
+      ? listVehicles(
+          { ...defaultVehicleFilters(), pageSize: 60 },
+          { includeDemo: false, rentalEnabled },
+        )
       : { items: [] as { slug: string; createdAt: string }[] };
     listings = [
       ...properties.items.map((p) => ({

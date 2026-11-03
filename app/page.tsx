@@ -17,11 +17,29 @@ import { dictionaries } from '@/lib/i18n/dictionaries';
 import { resolveLocale } from '@/lib/i18n/locale';
 import { LOCALE_COOKIE } from '@/lib/config';
 
-export const metadata: Metadata = {
-  title: dictionaries.fr.meta.defaultTitle,
-  description: dictionaries.fr.meta.defaultDescription,
-  alternates: { canonical: '/' },
-};
+/**
+ * Homepage metadata.
+ *
+ * Computed per request rather than exported as a constant: the description must
+ * match the offer, so it cannot keep promising vehicle rental after an operator
+ * switched that service off. (The page was already dynamic — it reads the locale
+ * cookie and live statistics — so this changes no rendering mode.)
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  let rentalEnabled = true;
+  try {
+    rentalEnabled = isVehicleRentalEnabled();
+  } catch {
+    // Never break the homepage over a metadata lookup.
+    rentalEnabled = true;
+  }
+  const meta = dictionaries.fr.meta;
+  return {
+    title: meta.defaultTitle,
+    description: rentalEnabled ? meta.defaultDescription : meta.defaultDescriptionNoRental,
+    alternates: { canonical: '/' },
+  };
+}
 
 /** Re-build the marketing page at most every 5 minutes (real DB counts). */
 export const revalidate = 300;
@@ -34,14 +52,16 @@ export default async function HomePage() {
   const communes = listCommunes({ activeOnly: true });
   const stats = getPublicStats();
   const properties = listFeaturedProperties(6);
-  // With no rental service the homepage simply has no vehicle spotlight: an
-  // empty "featured vehicles" block would advertise a service that does not exist.
   const rentalEnabled = isVehicleRentalEnabled();
-  const vehicles = rentalEnabled ? listFeaturedVehicles(3) : [];
+  // The spotlight follows the inventory, not the rental service: with rental off
+  // it shows sale listings (and saleable `both` ones, projected as sales). The
+  // block is only skipped when there is genuinely nothing eligible to show, and
+  // then `FeaturedVehicles` would render its empty state instead of a dead CTA.
+  const vehicles = listFeaturedVehicles(3, { rentalEnabled });
 
   return (
     <PublicShell transparentHeader>
-      <Hero communes={communes} rentalEnabled={rentalEnabled} />
+      <Hero communes={communes} rentalEnabled={rentalEnabled} hasSaleInventory={vehicles.length > 0} />
 
       <section className="border-b border-sand-200 bg-sand-50 py-10 sm:py-12">
         <div className="container-page">
@@ -62,10 +82,10 @@ export default async function HomePage() {
       </section>
 
       <FeaturedProperties items={properties} />
-      {rentalEnabled && <FeaturedVehicles items={vehicles} />}
+      {vehicles.length > 0 && <FeaturedVehicles items={vehicles} rentalEnabled={rentalEnabled} />}
       <ServicesSection rentalEnabled={rentalEnabled} />
       <WhyUsSection />
-      <AboutSection />
+      <AboutSection rentalEnabled={rentalEnabled} />
       <CoverageSection communes={communes} />
       <ContactTeaser />
     </PublicShell>

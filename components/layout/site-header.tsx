@@ -22,13 +22,22 @@ import { cn } from '@/lib/utils';
 export function SiteHeader({
   transparentOnTop = false,
   rentalEnabled = true,
+  hasSaleInventory = true,
 }: {
   transparentOnTop?: boolean;
-  /** When false, the vehicle section is removed from every menu. */
+  /**
+   * When false, the menu offers vehicle *sales* instead of rental — and drops
+   * the entry entirely if there is no sale inventory to show.
+   */
   rentalEnabled?: boolean;
+  /** Whether the sale catalogue has published real listings. */
+  hasSaleInventory?: boolean;
 }) {
   const { t, locale } = useI18n();
-  const navItems = React.useMemo(() => primaryNavFor({ rentalEnabled }), [rentalEnabled]);
+  const navItems = React.useMemo(
+    () => primaryNavFor({ rentalEnabled, hasSaleInventory }),
+    [rentalEnabled, hasSaleInventory],
+  );
   const pathname = usePathname();
   const [open, setOpen] = React.useState(false);
   const [scrolled, setScrolled] = React.useState(false);

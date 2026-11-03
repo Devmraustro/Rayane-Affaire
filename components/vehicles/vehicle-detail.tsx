@@ -19,9 +19,15 @@ import { VehicleCard } from './vehicle-card';
 export function VehicleDetail({
   vehicle,
   similar,
+  rentalEnabled = true,
 }: {
   vehicle: Vehicle;
   similar: VehicleSummary[];
+  /**
+   * With rental off, a sale listing must not show rental price, per-day unit,
+   * "pickup" wording or a reservation intent — those are rental actions.
+   */
+  rentalEnabled?: boolean;
 }) {
   const { t, locale, pick, dir } = useI18n();
   const title = pick(vehicle.title);
@@ -157,20 +163,29 @@ export function VehicleDetail({
           <aside className="lg:sticky lg:top-24 lg:self-start">
             <div className="rounded-2xl border border-sand-200 bg-white p-5 shadow-card">
               <div className="space-y-1">
-                {vehicle.dailyPrice != null && (
+                {rentalEnabled && vehicle.dailyPrice != null && (
                   <p className="flex items-baseline gap-1.5">
                     <span className="text-2xs font-semibold uppercase tracking-[0.1em] text-ink-400">
                       {t.vehicles.detail.rentalPrice}
                     </span>
                   </p>
                 )}
-                {vehicle.dailyPrice != null && (
+                {rentalEnabled && vehicle.dailyPrice != null && (
                   <p className="font-display text-2xl font-semibold text-ink-900">
                     {formatPrice(vehicle.dailyPrice, locale)}{' '}
                     <span className="text-sm font-normal text-ink-400">{t.common.perDay}</span>
                   </p>
                 )}
-                {vehicle.salePrice != null && (
+                {/* A sale-only presentation leads with the sale figure. */}
+                {!rentalEnabled && vehicle.salePrice != null && (
+                  <p className="font-display text-2xl font-semibold text-ink-900">
+                    {formatPrice(vehicle.salePrice, locale)}
+                  </p>
+                )}
+                {/* With rental on, the sale figure is the secondary line under the
+                    per-day price. With rental off it is already the headline above,
+                    so repeating it would print the same number twice. */}
+                {rentalEnabled && vehicle.salePrice != null && (
                   <p className="text-sm text-ink-600">
                     {t.vehicles.detail.salePrice}: <strong className="font-semibold">{formatPrice(vehicle.salePrice, locale)}</strong>
                   </p>
@@ -185,7 +200,7 @@ export function VehicleDetail({
               </div>
 
               <div className="mt-4 space-y-2">
-                {WHATSAPP_NUMBER && (
+                {WHATSAPP_NUMBER && rentalEnabled && (
                   <Button asChild variant="gold" className="w-full">
                     <a
                       href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
@@ -215,14 +230,18 @@ export function VehicleDetail({
 
               <p className="mt-4 flex items-center gap-1.5 border-t border-sand-100 pt-3 text-xs text-ink-400">
                 <MapPin aria-hidden="true" className="size-3.5" />
-                {t.vehicles.detail.pickup}: {pick(vehicle.commune.name)}
+                {rentalEnabled ? t.vehicles.detail.pickup : t.vehicles.detail.location}
+                {': '}
+                {pick(vehicle.commune.name)}
               </p>
             </div>
 
             <div className="mt-4">
               <InquiryForm
                 vehicleId={vehicle.id}
-                intent="reservation"
+                // "Reservation" is a rental intent (it also reveals the preferred
+                // date field); a sale enquiry must not be filed as one.
+                intent={rentalEnabled ? 'reservation' : 'vehicle'}
                 compact
                 title={t.vehicles.detail.contactCta}
               />

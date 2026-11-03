@@ -37,7 +37,7 @@ l'interface, avec une identité propre.
 | Base | SQLite via `node:sqlite` (Node ≥ 22.5, aucune compilation native) |
 | Validation | Zod (schémas partagés client/serveur) |
 | Carte | Leaflet + react-leaflet + markercluster, tuiles OpenStreetMap |
-| Tests | Vitest (8 fichiers, 161 tests) |
+| Tests | Vitest (8 fichiers, 175 tests) |
 | Volume produit | 155 fichiers TypeScript/TSX : **27 routes de page** et **11 routes API** au build, 52 composants, 28 modules `lib/` |
 
 ### 2.2 Base de données (12 tables, 21 index)
@@ -71,12 +71,24 @@ Détail complet : `docs/DATABASE_SCHEMA.md`.
 
 ### 2.3 bis Réglage de visibilité de la location de véhicules
 
-Contrôle réel (pas décoratif) permettant à l'agence d'indiquer si elle propose
-ou non la location de véhicules. Persisté dans `settings`, exposé par un
-interrupteur bilingue dans `/admin/settings`, appliqué à **toutes** les surfaces
-publiques (menu, catalogue, une, chiffres, services, sitemap) tout en laissant
-l'immobilier et la vente de véhicules intacts. Détail technique :
-`docs/ARCHITECTURE.md` §9 ; référence API : `docs/API_DOCUMENTATION.md`.
+Contrôle réel (pas décoratif) permettant à l'agence d'indiquer si elle propose ou
+non la location de véhicules. Persisté dans `settings`, exposé par un interrupteur
+bilingue dans `/admin/settings`, appliqué **côté serveur**.
+
+La règle est asymétrique et c'est volontaire : **le réglage retire la location,
+jamais la vente.** Une annonce `rent` disparaît (`404`, hors menu et hors
+sitemap) ; une annonce `sale` reste exactement identique ; une annonce `both`
+reste publique mais présentée comme une vente, sans prix de location et **sans
+que la ligne en base soit modifiée** (projection au rendu, cf.
+`projectVehicleForPublic`). Quand la location est désactivée, le menu propose
+« Véhicules à vendre », le catalogue reste joignable, la une et les statistiques
+suivent l'inventaire de vente, et le sitemap conserve `/vehicles` avec les fiches
+de vente. Disparaissent uniquement les surfaces locatives : CTA, carte de
+service, filtre `rent`/`both`, action de réservation, mentions de location dans
+les métadonnées et les textes de présentation.
+
+Détail technique : `docs/ARCHITECTURE.md` §9 ; API :
+`docs/API_DOCUMENTATION.md`.
 
 ### 2.4 Back-office
 
@@ -226,7 +238,7 @@ Toutes les commandes ci-dessous ont été exécutées sur ce dépôt, à ce comm
 | --- | --- |
 | `npx tsc --noEmit` | aucune sortie ⇒ 0 erreur |
 | `npm run lint` | `✔ No ESLint warnings or errors` |
-| `npm test` | `Test Files 8 passed (8)` / `Tests 161 passed (161)` |
+| `npm test` | `Test Files 8 passed (8)` / `Tests 175 passed (175)` |
 | `npm run build` | `✓ Compiled successfully`, `✓ Generating static pages (19/19)`, 20 pages statiques, 38 entrées de route + middleware, JS partagé 103 kB |
 | `npm run smoke -- http://localhost:3000` | `All checks passed.` — 17/17, sur un serveur de production au repos (15 contrôles de route + 2 assertions HTML) |
 | Parcours admin via `curl` | connexion 200, `/admin` 307 sans session, 9 pages admin 200 avec session, création `RA-P-0001`, `422 MEDIA_REQUIRED` sans photo, upload 200, publication 200, fiche publique 200 |

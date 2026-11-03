@@ -22,6 +22,18 @@ export const BRAND = {
     fr: 'Location, vente et gestion immobilière, meublés de courte durée et location de véhicules dans la wilaya de Béjaïa.',
     ar: 'الكراء والبيع والتسيير العقاري، والشقق المفروشة للإقامة القصيرة وكراء السيارات في ولاية بجاية.',
   },
+  /**
+   * Positioning used when the agency does not rent vehicles.
+   *
+   * A tagline is marketing copy, not navigation: leaving the rental promise in the
+   * homepage heading while the rental section is switched off would advertise a
+   * service the agency does not provide. Vehicle *sales* are still mentioned, since
+   * they remain part of the offer.
+   */
+  positioningWithoutRental: {
+    fr: 'Location, vente et gestion immobilière, meublés de courte durée et vente de véhicules dans la wilaya de Béjaïa.',
+    ar: 'الكراء والبيع والتسيير العقاري، والشقق المفروشة للإقامة القصيرة وبيع السيارات في ولاية بجاية.',
+  },
   /** Primary market. Verified against OSM administrative boundaries. */
   market: {
     wilaya: { fr: 'Wilaya de Béjaïa', ar: 'ولاية بجاية' },
@@ -52,7 +64,7 @@ export const THEME = {
 /** Navigation model — shared by header, footer and mobile drawer. */
 export type NavItem = {
   href: string;
-  labelKey: 'home' | 'properties' | 'vehicles' | 'map' | 'services' | 'about' | 'contact';
+  labelKey: 'home' | 'properties' | 'vehicles' | 'vehicleSales' | 'map' | 'services' | 'about' | 'contact';
 };
 
 export const PRIMARY_NAV: NavItem[] = [
@@ -66,16 +78,30 @@ export const PRIMARY_NAV: NavItem[] = [
 ];
 
 /**
- * Navigation with the vehicle section removed when the agency has no rental
- * service.
+ * Navigation for the current rental setting.
  *
- * The site is a head term for both property and vehicle searches, so the
- * vehicle entry disappears from every menu (header, mobile drawer, footer)
- * rather than linking to a page that would then refuse to render. Property
- * navigation is untouched.
+ * With rental enabled, nothing changes. With rental disabled:
+ *
+ *   * if sale inventory exists, `/vehicles` stays in the menu but is relabelled
+ *     "Véhicules à vendre" / "سيارات للبيع" — the catalogue is still a catalogue,
+ *     and hiding it would bury sale stock the agency is trying to sell;
+ *   * if there is no sale inventory at all, the entry is dropped, because a link
+ *     to an empty catalogue is a dead end.
+ *
+ * The caller decides "sale inventory exists" (see `countPublicSaleVehicles`), so
+ * this function stays pure and testable.
  */
-export function primaryNavFor(options: { rentalEnabled: boolean }): NavItem[] {
-  return options.rentalEnabled
-    ? PRIMARY_NAV
-    : PRIMARY_NAV.filter((item) => item.labelKey !== 'vehicles');
+export function primaryNavFor(options: {
+  rentalEnabled: boolean;
+  hasSaleInventory?: boolean;
+}): NavItem[] {
+  if (options.rentalEnabled) return PRIMARY_NAV;
+  // Default to keeping the entry: a caller that forgets the flag should not
+  // silently hide the sale catalogue.
+  if (options.hasSaleInventory === false) {
+    return PRIMARY_NAV.filter((item) => item.labelKey !== 'vehicles');
+  }
+  return PRIMARY_NAV.map((item) =>
+    item.labelKey === 'vehicles' ? { ...item, labelKey: 'vehicleSales' as const } : item,
+  );
 }

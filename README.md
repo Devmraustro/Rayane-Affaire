@@ -48,13 +48,25 @@ Site public bilingue (français / العربية), back-office authentifié, bas
 ### Réglage : location de véhicules
 
 L'agence peut déclarer, depuis `/admin/settings`, qu'elle **ne propose pas** la
-location de véhicules. Dans ce cas le site public retire l'entrée de menu, les
-annonces de location du catalogue, le bloc véhicules de la une, le CTA du héros,
-la carte « Location de véhicules » des services et les URL correspondantes du
-`sitemap`. Les annonces `rent`/`both` renvoient alors `404`, tandis que **la
-vente de véhicules et tout l'immobilier restent inchangés**, et le back-office
-continue d'afficher l'inventaire complet. Le réglage est persisté en base, son défaut (`true`)
-préserve le comportement antérieur, et chaque changement est journalisé.
+location de véhicules. Le réglage retire alors **la location, jamais la vente** :
+
+| Annonce | Location activée | Location désactivée |
+| --- | --- | --- |
+| `sale` (vente) | visible | **inchangée** |
+| `rent` (location) | visible | **`404`**, hors menu et hors `sitemap` |
+| `both` (les deux) | visible, prix/jour + prix de vente | **visible comme une vente** : prix de vente seul, prix/jour retiré |
+
+Le menu propose « Véhicules à vendre » (et seulement s'il existe du stock à
+vendre), le catalogue `/vehicles` reste joignable, la une met en avant
+l'inventaire de vente et le `sitemap.xml` conserve les URL de vente. Disparaissent
+en revanche les surfaces proprement locatives : CTA « Louer un véhicule », carte
+« Location de véhicules », filtre `rent`/`both`, action de réservation, et les
+mentions de location dans les métadonnées et les textes de présentation.
+
+L'annonce `both` n'est **pas** réécrite en base : seule sa présentation publique
+change, donc réactiver la location restaure l'affichage d'origine. Le back-office
+continue d'afficher l'inventaire complet avec le `deal_type` réel. Défaut `true`
+(comportement antérieur préservé) et chaque changement est journalisé.
 
 ### Back-office (`/admin`)
 

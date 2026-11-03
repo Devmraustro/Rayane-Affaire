@@ -14,7 +14,7 @@ Dernière exécution : 3 novembre 2026.
 | --- | --- | --- |
 | Types | `npx tsc --noEmit` | ✅ **0 erreur** |
 | Lint | `npm run lint` (`next lint`) | ✅ **0 avertissement, 0 erreur** |
-| Tests | `npm test` (`vitest run`) | ✅ **161 tests / 161 réussis**, 8 fichiers, ~4 s |
+| Tests | `npm test` (`vitest run`) | ✅ **175 tests / 175 réussis**, 8 fichiers, ~5 s |
 | Build de production | `npm run build` | ✅ **compilé, 20 pages générées**, 37 entrées de route + middleware, aucune erreur |
 | Vérifications HTTP | `npm run smoke` | ✅ **17/17** (15 contrôles de route : 8 pages publiques, `robots.txt`, `sitemap.xml`, garde admin, connexion admin, 3 contrôles `404` ; + 2 assertions sur le HTML servi : cohérence menu ↔ sitemap, absence de numéro factice) |
 | Parcours admin réel | `curl` (connexion → CRUD → upload → publication) | ✅ voir §6 |
@@ -35,9 +35,9 @@ n'a été réduite. Aucune assertion n'a été retirée pour faire passer la sui
 | `tests/security.test.ts` | 21 | scrypt (sel, vérification, hash malformé, Unicode, politique), jeton de session haché en base, comparaison CSRF, limitation de débit, détection MIME par magic bytes, refus SVG/HTML/PHP, taille, fichier déguisé, suppression limitée, entrées hostiles stockées en texte |
 | `tests/database.test.ts` | 20 | 11 communes OSM dans la boîte englobante de la wilaya, clés étrangères, contrainte `pending ⇒ coordonnées NULL`, cycle création/publication, refus de publier sans photo, invisibilité des brouillons, règle des marqueurs de carte, filtres/recherche FR+AR/tri/pagination, cycle véhicule, exclusion des données de démonstration des statistiques, zéros sur base vide, suppression transactionnelle des médias |
 | `tests/api.test.ts` | 41 | Connexion (succès, échec générique, compte inconnu, origine croisée, validation), cookies (HttpOnly pour la session, CSRF lisible, `SameSite`, `Expires`), déconnexion révoquant la session, CSRF (absent/faux), rôles (éditeur, manager, propriétaire), compte désactivé, session expirée, session révoquée, jeton forgé, CRUD bien complet, `422` avec codes i18n, `422 MEDIA_REQUIRED`, `404`, audit, suppression, demandes publiques (valide, invalide, piège, quota `429`), **réglage de location** : persistance, `changed=false` sans écriture d'audit, détail d'audit avant/après, éditeur refusé (`403`), CSRF absent (`403`), non authentifié (`401`), trois `422` (type faux, clé inconnue, objet vide), JSON illisible (`400`) |
-| `tests/vehicle-rental-setting.test.ts` | 21 | **Nouveau.** Défaut `true` et préservation du comportement ; lecture d'une valeur absente, vide ou illisible ⇒ défaut ; sérialisation/analyse des booléens ; `RENTABLE_DEAL_TYPES` et `isRentableDealType` ; filtre `deal_type NOT IN ('rent','both')` appliqué au catalogue, à la une, aux suggestions et aux statistiques ; fiche `rent`/`both` invisible en public mais **toujours accessible en back-office** ; **vente de véhicules jamais filtrée** dans les deux états ; **immobilier identique** dans les deux états ; cohérence du menu et du sitemap |
+| `tests/vehicle-rental-setting.test.ts` | 35 | Défaut `true` et préservation du comportement ; lecture d'une valeur absente, vide ou illisible ⇒ défaut ; analyse/sérialisation des booléens ; `RENTABLE_DEAL_TYPES`, `isRentableDealType`, `projectVehicleForPublic`. **Catalogue** : les trois annonces en location activée, `rent` exclue et `sale`+`both` conservées en location désactivée, filtres et recherche toujours appliqués. **Fiches** : `rent` ⇒ `null`, `sale` et `both` ⇒ résolues ; `both` projetée en vente (prix/jour `null`, prix de vente conservé) ; **la ligne en base n'est pas modifiée** (vérifié en SQL et via le lecteur admin) ; une annonce `both` sans prix de vente ne peut pas exister (contrainte `CHECK`), et la requête la refuserait quand même. **Une** : mise en avant de l'inventaire de vente. **Statistiques** : le total égale exactement ce que le catalogue sert. **Navigation** : entrée « Véhicules à vendre » conservée, retirée seulement sans stock. **Sitemap** : `/vehicles` et fiches de vente inclus, URL de location exclues. **Projection** : identité si location activée, `both` → `sale` sinon, aucun prix inventé. **Surfaces de location** : filtres, carte service, CTA du héros et action de réservation restent conditionnels. **Immobilier identique** dans les deux états |
 
-**Total : 161 tests.** Répartition par nature : 85 tests unitaires purs, 76 tests
+**Total : 175 tests.** Répartition par nature : 92 tests unitaires purs, 83 tests
 d'intégration (base SQLite réelle et/ou gestionnaires de route réels).
 
 ---
@@ -154,32 +154,51 @@ développement ; en production le middleware émet `'nonce-…' 'strict-dynamic'
 
 ## 4 bis. Réglage de la location de véhicules — matrice vérifiée de bout en bout
 
-Le réglage est couvert par 30 tests automatisés (21 + 9), mais son effet public a
+Le réglage est couvert par 44 tests automatisés (35 + 9), et son effet public a
 aussi été vérifié à la main **sur un build de production**, dans les deux états,
-en FR et en AR. Base : 6 biens de démonstration et **3 véhicules de
-démonstration, tous en location ou mixte** (`rent`, `rent`, `both`). Le jeu de
-démonstration ne contient **aucun véhicule en vente** ; les lignes « vente » de la
-matrice ont donc été vérifiées avec un véhicule `sale` créé puis supprimé pour
-l'occasion (aucune donnée inventée ne subsiste en base).
+en FR et en AR.
 
-| Surface | Location **activée** (défaut) | Location **désactivée** |
+**Base de vérification** : 6 biens et 3 véhicules de démonstration (`rent`,
+`rent`, `both`) — le jeu de démonstration ne contient **aucun véhicule en
+vente**. Les lignes concernant la vente ont donc été vérifiées avec deux
+annonces réelles créées pour l'occasion (une `sale`, une `both`) puis
+**supprimées** ; la base est revenue à son état d'origine (3 véhicules, location
+`true`). Aucune donnée inventée ne subsiste.
+
+| Surface | Location activée (défaut) | Location désactivée |
 | --- | --- | --- |
-| Menu (en-tête, pied de page) | entrée « Véhicules » présente | **absente** |
-| `/vehicles` | 3 véhicules | **0 véhicule** avec le jeu de démonstration actuel (tous en location) ; l'état vide s'affiche sous le titre « Véhicules à vendre ». Dès qu'une annonce `sale` existe, elle est la seule servie |
-| `/vehicles/<location>` | `200` | **`404`** |
-| `/vehicles/<vente>` | `200` | **`200`** (inchangé) — vérifié avec un véhicule `sale` temporaire, supprimé ensuite |
-| Une — bloc véhicules | présent | **absent** |
-| Une — CTA « Louer un véhicule » | présent | **absent** |
-| Bandeau de chiffres — tuile véhicules | présente | **absente** (pas de `0` trompeur) |
+| Menu (en-tête, pied de page) | « Véhicules » | **« Véhicules à vendre »**, même lien `/vehicles` |
+| `/vehicles` | 3 véhicules | **accessible**, titre « Véhicules à vendre » |
+| Fiche `sale` | `200` | **`200`** (inchangée) |
+| Fiche `rent` | `200` | **`404`** |
+| Fiche `both` | `200`, prix/jour + prix de vente | **`200`** présentée en vente : prix de vente seul, prix/jour retiré |
+| Une — bloc véhicules | « Véhicules à la une » | **« Véhicules à vendre à la une »** |
+| Une — CTA du héros | « Louer un véhicule » | **« Véhicules à vendre »** |
+| Bandeau de chiffres — tuile véhicules | présente | **présente**, comptant l'inventaire de vente |
 | `/services` — carte location | présente | **absente** |
-| `sitemap.xml` | contient `/vehicles` et les fiches | **aucune URL de location** |
-| `/admin/vehicles` | 3 véhicules | **3 véhicules** (le back-office ne filtre jamais) — c'est la preuve que le réglage masque sans supprimer |
-| `/properties`, `/map`, `/communes` | référence | **identique** (aucune régression) |
+| Carte du catalogue — filtre location | options `rent` + `both` | **absentes**, option `sale` seule |
+| Fiche détail — action de réservation | présente | **absente** (intent `vehicle`, pas `reservation`) |
+| Métadonnées (description, mots-clés) | « location de véhicules » | **« vente de véhicules »** |
+| `sitemap.xml` | `/vehicles` + fiches | **`/vehicles` + fiches de vente**, aucune URL de location |
+| `/admin/vehicles` | 3 véhicules | **inventaire complet**, `deal_type` réel visible |
+| `/properties`, `/map` | référence | **identique** (aucune régression) |
 
 Ces valeurs ont été obtenues par `curl` sur le HTML servi, pas par lecture du
-code. Elles sont aussi contrôlées automatiquement dans
-`tests/vehicle-rental-setting.test.ts` et par le script `smoke`
-(contrôle de cohérence menu ↔ `sitemap`).
+code. Le script `smoke` les contrôle partiellement (catalogue joignable, fiches
+résolues, cohérence menu ↔ sitemap, présence des fiches réelles au sitemap).
+
+### Ce que cette matrice a corrigé
+
+Une version antérieure retirait **toute** la surface véhicules quand la location
+était désactivée : entrée de menu supprimée, bloc de la une supprimé, URL du
+sitemap supprimées. Les annonces de vente restaient en base et accessibles par
+URL directe, mais devenaient **introuvables** — le réglage masquait donc la
+vente, à l'inverse de l'exigence. Trois conséquences corrigées dans ce lot :
+
+1. le menu propose désormais « Véhicules à vendre » au lieu de disparaître ;
+2. la une et le sitemap exposent l'inventaire de vente ;
+3. une annonce `both` reste publique, projetée en vente (prix de location retiré),
+   sans modification de la ligne en base.
 
 **Limite honnête** : cette matrice a été établie sur du HTML et des codes de
 statut, pas sur un rendu visuel. Aucun navigateur n'était disponible (voir §6).
@@ -273,7 +292,7 @@ Trois écarts avec l'exécution précédente, chacun expliqué :
 npm install
 npm run typecheck     # 0 erreur
 npm run lint          # 0 avertissement
-npm test              # 161 tests
+npm test              # 175 tests
 npm run build         # build de production
 npm run dev &         # puis, dans un autre terminal :
 npm run smoke -- http://localhost:3000

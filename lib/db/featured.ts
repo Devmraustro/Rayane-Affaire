@@ -14,6 +14,20 @@ export function listFeaturedProperties(limit = 6) {
   return listProps(limit).filter((item) => !item.isDemo).slice(0, limit);
 }
 
-export function listFeaturedVehicles(limit = 3) {
-  return listVehicles(limit).filter((item) => !item.isDemo).slice(0, limit);
+/**
+ * Featured vehicles for the homepage spotlight.
+ *
+ * `rentalEnabled` is passed through so the repository applies the public
+ * projection: with rental off, only sale and saleable `both` rows come back, and
+ * a `both` row arrives already presented as a sale.
+ */
+export function listFeaturedVehicles(
+  limit = 3,
+  scope: { rentalEnabled?: boolean } = {},
+) {
+  // Over-fetch slightly: demo rows are filtered out below, so asking for exactly
+  // `limit` could leave the spotlight short.
+  return listVehicles(limit + 3, scope)
+    .filter((item) => !item.isDemo)
+    .slice(0, limit);
 }

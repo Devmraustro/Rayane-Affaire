@@ -278,15 +278,21 @@ Effet public immédiat de `vehicleRentalEnabled: false` — vérifié de bout en
 
 | Surface | Comportement |
 | --- | --- |
-| Menu (en-tête, tiroir mobile, pied de page) | entrée « Véhicules » retirée |
-| `/vehicles` | reste accessible, devient un catalogue de vente (« Véhicules à vendre ») ; les annonces `rent` et `both` sont exclues |
-| `/vehicles/[slug]` | `404` pour une annonce `rent` ou `both` |
-| Une de la page d'accueil | bloc véhicules et CTA « Louer un véhicule » retirés |
-| Bandeau de chiffres | tuile « Véhicules publiés » retirée (pas de zéro trompeur) |
+| Menu (en-tête, tiroir mobile, pied de page) | libellé « Véhicules à vendre » / « سيارات للبيع », toujours vers `/vehicles` ; entrée retirée **seulement** s'il n'existe aucun stock de vente |
+| `/vehicles` | reste accessible et devient un catalogue de vente ; les annonces `rent` sont exclues, `sale` et `both` restent visibles |
+| `/vehicles/[slug]` | `404` pour une annonce `rent` ; `200` pour `sale` et pour `both` (présentée comme une vente) |
+| Une de la page d'accueil | bloc « Véhicules à vendre à la une » alimenté par l'inventaire de vente ; CTA du héros « Véhicules à vendre » |
+| Bandeau de chiffres | tuile véhicules conservée et alignée sur l'inventaire de vente visible (masquée seulement si ce total est nul) |
 | `/services` | carte « Location de véhicules » retirée |
-| `sitemap.xml` | `/vehicles` et les fiches véhicules retirés |
-| Back-office | **inchangé** : tout l'inventaire reste visible et modifiable |
+| `sitemap.xml` | `/vehicles` et les fiches de vente conservés ; les fiches de location retirées |
+| Métadonnées | description et mots-clés passent de « location de véhicules » à « vente de véhicules » |
+| Textes « à propos » | la phrase de positionnement ne promet plus la location |
+| Back-office | **inchangé** : tout l'inventaire reste visible et modifiable, avec le `deal_type` réel |
 | Immobilier | **inchangé** dans les deux états |
+
+Détail du cas `both` : l'annonce reste publique mais son prix de location n'est
+jamais exposé (ni prix/jour, ni libellé « Prix de location », ni action de
+réservation). La ligne en base n'est pas modifiée — seule la vue l'est.
 
 ---
 

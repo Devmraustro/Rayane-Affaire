@@ -205,10 +205,12 @@ describe('public catalogue', () => {
     expect(await vehicleSlugs()).toEqual(['verif-both', 'verif-rent-only', 'verif-sale-only']);
   });
 
-  it('drops rent and both, keeps sale-only, when rental is disabled', async () => {
+  it('drops rental-only listings and keeps sale inventory when rental is disabled', async () => {
     const { setVehicleRentalEnabled } = await import('@/lib/db/settings');
     setVehicleRentalEnabled(false);
-    expect(await vehicleSlugs()).toEqual(['verif-sale-only']);
+    // `both` is saleable, so it must survive the switch: hiding it would hide
+    // inventory the agency is trying to sell.
+    expect(await vehicleSlugs()).toEqual(['verif-both', 'verif-sale-only']);
     setVehicleRentalEnabled(true);
   });
 
@@ -222,7 +224,7 @@ describe('public catalogue', () => {
       listVehicles(defaultVehicleFilters()).items.map((v) =>
         v.slug.replace('testbrand-', '').replace('-2023', ''),
       ),
-    ).toEqual(['verif-sale-only']);
+    ).toEqual(['verif-both', 'verif-sale-only']);
     setVehicleRentalEnabled(true);
     expect(listVehicles(defaultVehicleFilters()).total).toBe(3);
   });
@@ -251,18 +253,82 @@ describe('detail pages', () => {
     expect(getVehicleBySlug(slugFor('verif-rent-only'))?.slug).toBe(slugFor('verif-rent-only'));
   });
 
-  it('returns null for rent and both when rental is disabled', async () => {
+  it('404s a rental-only listing but keeps sale and saleable `both` listings', async () => {
     const { setVehicleRentalEnabled } = await import('@/lib/db/settings');
     const { getVehicleBySlug } = await import('@/lib/db/vehicles');
     setVehicleRentalEnabled(false);
     expect(getVehicleBySlug(slugFor('verif-rent-only'))).toBeNull();
-    expect(getVehicleBySlug(slugFor('verif-both'))).toBeNull();
     // Sale-only still resolves: hiding rental must not hide sales.
     expect(getVehicleBySlug(slugFor('verif-sale-only'))?.slug).toBe(slugFor('verif-sale-only'));
+    // `both` is reachable, projected as a sale listing.
+    expect(getVehicleBySlug(slugFor('verif-both'))?.slug).toBe(slugFor('verif-both'));
     setVehicleRentalEnabled(true);
   });
 
-  it('never returns similar rentals alongside a sale listing when rental is off', async () => {
+  it('presents a `both` listing as a sale when rental is off, withholding the rental price', async () => {
+    const { setVehicleRentalEnabled } = await import('@/lib/db/settings');
+    const { getVehicleBySlug } = await import('@/lib/db/vehicles');
+
+    setVehicleRentalEnabled(true);
+    const asBoth = getVehicleBySlug(slugFor('verif-both'))!;
+    expect(asBoth.dealType).toBe('both');
+    expect(asBoth.dailyPrice).toBeGreaterThan(0);
+    expect(asBoth.salePrice).not.toBeNull();
+
+    setVehicleRentalEnabled(false);
+    const asSale = getVehicleBySlug(slugFor('verif-both'))!;
+    // The projection: sale presentation, no rental figure leaking.
+    expect(asSale.dealType).toBe('sale');
+    expect(asSale.dailyPrice).toBeNull();
+    expect(asSale.salePrice).toBe(asBoth.salePrice);
+    setVehicleRentalEnabled(true);
+  });
+
+  it('never mutates the stored row when projecting `both` as a sale', async () => {
+    const { setVehicleRentalEnabled } = await import('@/lib/db/settings');
+    const { getVehicleBySlug, getVehicleById } = await import('@/lib/db/vehicles');
+    const { getDb } = await import('@/db/client');
+
+    setVehicleRentalEnabled(false);
+    const projected = getVehicleBySlug(slugFor('verif-both'))!;
+    expect(projected.dealType).toBe('sale');
+
+    // The database still holds the original deal type and both prices.
+    const raw = getDb()
+      .prepare('SELECT deal_type, daily_price, sale_price FROM vehicles WHERE slug = ?')
+      .get(slugFor('verif-both')) as {
+      deal_type: string;
+      daily_price: number | null;
+      sale_price: number | null;
+    };
+    expect(raw.deal_type).toBe('both');
+    expect(raw.daily_price).not.toBeNull();
+    expect(raw.sale_price).not.toBeNull();
+
+    // The admin read is unprojected, so the operator still sees `both`.
+    expect(getVehicleById(projected.id)?.dealType).toBe('both');
+    setVehicleRentalEnabled(true);
+  });
+
+  it('cannot produce a `both` listing without a sale price (the database forbids it)', async () => {
+    const { getDb } = await import('@/db/client');
+    const { SAFE_PROJECTION_SQL } = await import('@/lib/settings');
+
+    // The projection's sale-price guard is defence in depth: the CHECK constraint
+    // means the bad state cannot exist in the first place. Both are asserted so a
+    // future migration that relaxes the constraint fails here rather than shipping
+    // a sale listing with no price.
+    expect(() =>
+      getDb()
+        .prepare('UPDATE vehicles SET sale_price = NULL WHERE slug = ?')
+        .run(slugFor('verif-both')),
+    ).toThrow(/CHECK constraint failed/);
+
+    // And the query itself would still exclude such a row if it ever existed.
+    expect(SAFE_PROJECTION_SQL).toContain('sale_price IS NOT NULL');
+  });
+
+  it('never suggests a rental-only listing alongside a sale while rental is off', async () => {
     const { setVehicleRentalEnabled } = await import('@/lib/db/settings');
     const { getVehicleBySlug, listSimilarVehicles } = await import('@/lib/db/vehicles');
     setVehicleRentalEnabled(true);
@@ -272,7 +338,11 @@ describe('detail pages', () => {
     setVehicleRentalEnabled(false);
     const similar = listSimilarVehicles(sale!, 5, { rentalEnabled: false });
     expect(similar.map((v) => v.slug)).not.toContain(slugFor('verif-rent-only'));
-    expect(similar.map((v) => v.slug)).not.toContain(slugFor('verif-both'));
+    // The saleable `both` row may appear, but only as a sale.
+    for (const item of similar) {
+      expect(item.dealType).toBe('sale');
+      expect(item.dailyPrice).toBeNull();
+    }
     setVehicleRentalEnabled(true);
   });
 });
@@ -285,18 +355,28 @@ describe('homepage', () => {
     expect(listFeaturedVehicles(3).length).toBeGreaterThan(0);
   });
 
-  it('features only sale vehicles when rental is disabled', async () => {
+  it('features sale inventory — including saleable `both` — when rental is disabled', async () => {
     const { setVehicleRentalEnabled } = await import('@/lib/db/settings');
     const { listFeaturedVehicles } = await import('@/lib/db/vehicles');
     setVehicleRentalEnabled(false);
-    const featured = listFeaturedVehicles(3);
-    expect(featured.map((v) => v.slug)).toEqual([slugFor('verif-sale-only')]);
+    const featured = listFeaturedVehicles(3, { rentalEnabled: false });
+    expect(featured.map((v) => v.slug).sort()).toEqual([
+      slugFor('verif-both'),
+      slugFor('verif-sale-only'),
+    ]);
+    // Every featured item is presented as a sale with no per-day price.
+    for (const item of featured) {
+      expect(item.dealType).toBe('sale');
+      expect(item.dailyPrice).toBeNull();
+    }
     setVehicleRentalEnabled(true);
   });
 
-  it('excludes rental inventory from public statistics', async () => {
+  it('counts exactly the sale inventory the public can browse when rental is off', async () => {
     const { setVehicleRentalEnabled } = await import('@/lib/db/settings');
     const { getPublicStats } = await import('@/lib/db/stats');
+    const { listVehicles } = await import('@/lib/db/vehicles');
+    const { defaultVehicleFilters } = await import('@/lib/filters');
 
     setVehicleRentalEnabled(true);
     const withRental = getPublicStats();
@@ -304,9 +384,15 @@ describe('homepage', () => {
 
     setVehicleRentalEnabled(false);
     const withoutRental = getPublicStats();
-    expect(withoutRental.publishedVehicles).toBe(1);
+    // Sale-only + saleable `both`: the figure must match the catalogue, not
+    // silently under-report the stock the visitor can browse.
+    expect(withoutRental.publishedVehicles).toBe(2);
+    expect(withoutRental.publishedVehicles).toBe(
+      listVehicles(defaultVehicleFilters(), { rentalEnabled: false }).total,
+    );
     // Properties are never affected by this setting.
     expect(withoutRental.publishedProperties).toBe(withRental.publishedProperties);
+    expect(withoutRental.availableNow).toBeLessThanOrEqual(withRental.availableNow);
     setVehicleRentalEnabled(true);
   });
 });
@@ -371,5 +457,131 @@ describe('admin reads stay complete', () => {
     // An operator must be able to see and manage what the public cannot.
     expect(adminRows.length).toBe(3);
     expect(adminRows.map((row) => row.reference).every(Boolean)).toBe(true);
+  });
+});
+
+describe('navigation keeps sale inventory discoverable', () => {
+  it('offers a vehicle-sales link (not a hidden one) when rental is disabled', async () => {
+    const { primaryNavFor } = await import('@/lib/brand');
+
+    const withRental = primaryNavFor({ rentalEnabled: true });
+    expect(withRental.some((item) => item.labelKey === 'vehicles')).toBe(true);
+    expect(withRental.some((item) => item.labelKey === 'vehicleSales')).toBe(false);
+
+    const saleOnly = primaryNavFor({ rentalEnabled: false, hasSaleInventory: true });
+    const entry = saleOnly.find((item) => item.href === '/vehicles');
+    // The link survives, relabelled — it is not dropped.
+    expect(entry).toBeDefined();
+    expect(entry?.labelKey).toBe('vehicleSales');
+    expect(saleOnly.some((item) => item.labelKey === 'vehicles')).toBe(false);
+    // Property navigation is untouched.
+    expect(saleOnly.some((item) => item.labelKey === 'properties')).toBe(true);
+  });
+
+  it('drops the entry only when there is no sale inventory at all', async () => {
+    const { primaryNavFor } = await import('@/lib/brand');
+    const empty = primaryNavFor({ rentalEnabled: false, hasSaleInventory: false });
+    expect(empty.some((item) => item.href === '/vehicles')).toBe(false);
+  });
+
+  it('reports sale inventory from the live catalogue, ignoring demo rows', async () => {
+    const { countPublicSaleVehicles } = await import('@/lib/db/vehicles');
+    const { setVehicleRentalEnabled } = await import('@/lib/db/settings');
+
+    setVehicleRentalEnabled(true);
+    // Both our seeded sale and `both` rows are real (is_demo = 0).
+    expect(countPublicSaleVehicles(true)).toBe(3);
+
+    setVehicleRentalEnabled(false);
+    // Sale-only + saleable `both`; the rental-only row is not sellable.
+    expect(countPublicSaleVehicles(false)).toBe(2);
+    setVehicleRentalEnabled(true);
+  });
+});
+
+describe('sitemap advertises the sale catalogue while rental is off', () => {
+  it('includes /vehicles and sale detail URLs, and excludes rental-only ones', async () => {
+    const { setVehicleRentalEnabled } = await import('@/lib/db/settings');
+    const { default: sitemap } = await import('@/app/sitemap');
+
+    setVehicleRentalEnabled(true);
+    const enabledUrls = sitemap().map((entry) => entry.url);
+    expect(enabledUrls.some((url) => url.endsWith('/vehicles'))).toBe(true);
+    expect(enabledUrls.some((url) => url.endsWith(slugFor('verif-rent-only')))).toBe(true);
+
+    setVehicleRentalEnabled(false);
+    const disabledUrls = sitemap().map((entry) => entry.url);
+    // The catalogue itself stays advertised: it is a sale catalogue now.
+    expect(disabledUrls.some((url) => url.endsWith('/vehicles'))).toBe(true);
+    // Sale inventory is discoverable by crawlers.
+    expect(disabledUrls.some((url) => url.endsWith(slugFor('verif-sale-only')))).toBe(true);
+    expect(disabledUrls.some((url) => url.endsWith(slugFor('verif-both')))).toBe(true);
+    // Rental-only URLs would 404, so they must never be listed.
+    expect(disabledUrls.some((url) => url.endsWith(slugFor('verif-rent-only')))).toBe(false);
+
+    setVehicleRentalEnabled(true);
+  });
+});
+
+describe('sale presentation projection', () => {
+  it('is the identity when rental is enabled', async () => {
+    const { projectVehicleForPublic } = await import('@/lib/settings');
+    const row = { dealType: 'both', dailyPrice: 5000, salePrice: 3000000 };
+    expect(projectVehicleForPublic(row, true)).toBe(row);
+  });
+
+  it('turns a `both` listing into a sale and withholds the rental price', async () => {
+    const { projectVehicleForPublic } = await import('@/lib/settings');
+    expect(projectVehicleForPublic({ dealType: 'both', dailyPrice: 5000, salePrice: 3000000 }, false))
+      .toEqual({ dealType: 'sale', dailyPrice: null, salePrice: 3000000 });
+  });
+
+  it('leaves a pure sale listing untouched', async () => {
+    const { projectVehicleForPublic } = await import('@/lib/settings');
+    expect(projectVehicleForPublic({ dealType: 'sale', dailyPrice: null, salePrice: 900 }, false))
+      .toEqual({ dealType: 'sale', dailyPrice: null, salePrice: 900 });
+  });
+
+  it('never invents a sale price for a `both` row that lacks one', async () => {
+    const { projectVehicleForPublic } = await import('@/lib/settings');
+    // Defensive: the query excludes such rows, but the projection must not guess.
+    expect(projectVehicleForPublic({ dealType: 'both', dailyPrice: 5000, salePrice: null }, false))
+      .toEqual({ dealType: 'both', dailyPrice: 5000, salePrice: null });
+  });
+});
+
+describe('rental-specific surfaces stay hidden', () => {
+  it('keeps the rental deal-type filter options out of the catalogue', async () => {
+    // The filter panel renders `rent` and `both` options only when rental is on;
+    // a sale catalogue must not offer a rental filter that yields nothing.
+    const source = await import('node:fs/promises').then((fs) =>
+      fs.readFile('components/vehicles/vehicle-filters.tsx', 'utf8'),
+    );
+    expect(source).toContain('{rentalEnabled && <option value="rent">');
+    expect(source).toContain('{rentalEnabled && <option value="both">');
+  });
+
+  it('gates the rental service card on the setting', async () => {
+    const source = await import('node:fs/promises').then((fs) =>
+      fs.readFile('components/home/services-section.tsx', 'utf8'),
+    );
+    expect(source).toContain("SERVICES.filter((item) => item.key !== 'vehicles')");
+  });
+
+  it('gates the hero rental CTA and the detail reservation action', async () => {
+    const hero = await import('node:fs/promises').then((fs) =>
+      fs.readFile('components/home/hero.tsx', 'utf8'),
+    );
+    // The rental CTA wording is only used while rental is on.
+    expect(hero).toContain('rentalEnabled ? t.home.heroCtaSecondary');
+    expect(hero).toContain('t.home.heroCtaVehicleSales');
+
+    const detail = await import('node:fs/promises').then((fs) =>
+      fs.readFile('components/vehicles/vehicle-detail.tsx', 'utf8'),
+    );
+    // Rental price, reservation intent and pickup wording are all gated.
+    expect(detail).toContain('{rentalEnabled && vehicle.dailyPrice != null && (');
+    expect(detail).toContain("intent={rentalEnabled ? 'reservation' : 'vehicle'}");
+    expect(detail).toContain('{WHATSAPP_NUMBER && rentalEnabled && (');
   });
 });

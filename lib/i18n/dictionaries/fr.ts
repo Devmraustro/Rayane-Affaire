@@ -10,6 +10,12 @@ export const fr = {
     defaultTitle: 'RAYANE AFFAIRE — Immobilier & véhicules à Béjaïa',
     defaultDescription:
       'Location et vente de biens immobiliers, meublés de courte durée et location de véhicules dans la wilaya de Béjaïa. Des annonces vérifiées, des prix annoncés.',
+    // Site-wide description when the agency does not rent vehicles. Metadata is
+    // the most visible marketing claim of all: promising a rental service the
+    // agency does not have would be exactly the kind of false advertising the
+    // brief forbids.
+    defaultDescriptionNoRental:
+      'Location et vente de biens immobiliers, meublés de courte durée et vente de véhicules dans la wilaya de Béjaïa. Des annonces vérifiées, des prix annoncés.',
     propertiesTitle: 'Biens immobiliers',
     vehiclesTitle: 'Véhicules',
     mapTitle: 'Carte des biens',
@@ -23,6 +29,8 @@ export const fr = {
     home: 'Accueil',
     properties: 'Biens',
     vehicles: 'Véhicules',
+    // Used when the agency has no rental service but does sell vehicles.
+    vehicleSales: 'Véhicules à vendre',
     map: 'Carte',
     services: 'Services',
     about: 'À propos',
@@ -168,6 +176,8 @@ export const fr = {
       'Location annuelle, meublés de courte durée, vente et location de véhicules. Chaque annonce est vérifiée par notre équipe avant publication.',
     heroCtaPrimary: 'Explorer les biens',
     heroCtaSecondary: 'Louer un véhicule',
+    // Secondary CTA when the agency sells vehicles but does not rent them.
+    heroCtaVehicleSales: 'Véhicules à vendre',
     searchTitle: 'Recherche rapide',
     searchTransaction: 'Type de transaction',
     searchCategory: 'Type de bien',
@@ -184,6 +194,9 @@ export const fr = {
     featuredPropertiesSub: 'Une sélection de biens vérifiés, disponibles immédiatement.',
     featuredVehicles: 'Véhicules à la une',
     featuredVehiclesSub: 'Des véhicules révisés, prêts pour la route.',
+    // Shown when the agency sells vehicles but does not rent them.
+    featuredVehicleSales: 'Véhicules à vendre à la une',
+    featuredVehicleSalesSub: 'Une sélection de véhicules disponibles à la vente.',
     noFeaturedProperties: 'Aucun bien publié pour le moment.',
     noFeaturedPropertiesSub: 'Les premières annonces apparaîtront ici dès leur publication.',
     noFeaturedVehicles: 'Aucun véhicule publié pour le moment.',
@@ -274,6 +287,8 @@ export const fr = {
       rentalPrice: 'Prix de location',
       salePrice: 'Prix de vente',
       pickup: 'Lieu de prise en charge',
+      // Neutral label for a sale listing, where there is nothing to pick up.
+      location: 'Commune',
       reserveCta: 'Réserver ce véhicule',
       contactCta: 'Demander un devis',
       similar: 'Véhicules similaires',
@@ -607,7 +622,7 @@ export const fr = {
       vehicleRental: {
         title: 'Location de véhicules',
         body:
-          'Indiquez si l’agence propose réellement la location de véhicules (flotte propre ou partenaire). Lorsque cette option est désactivée, le menu, le catalogue, la une et le plan du site n’exposent plus aucune offre de location.',
+          'Indiquez si l’agence propose réellement la location de véhicules (flotte propre ou partenaire). Désactivée, l’option retire les annonces de location et les actions de location, mais conserve la vente : le menu affiche « Véhicules à vendre », le catalogue, la une, les statistiques et le plan du site continuent d’exposer les véhicules à vendre. Une annonce « location et vente » reste visible en vente, sans son prix de location.',
         on: 'Location activée',
         off: 'Location désactivée',
         onHint: 'Les véhicules à louer sont visibles sur le site public.',
