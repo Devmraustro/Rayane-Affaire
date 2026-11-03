@@ -487,6 +487,101 @@ describe('property CRUD over HTTP', () => {
   });
 });
 
+describe('media upload rules', () => {
+  async function uploadAs(
+    listingId: string,
+    fields: Record<string, string>,
+  ): Promise<Response> {
+    const { POST } = await import('@/app/api/admin/media/route');
+    const png = new Uint8Array([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4, 5, 6, 7, 8,
+    ]);
+    const form = new FormData();
+    form.set('entityType', 'property');
+    form.set('entityId', listingId);
+    for (const [key, value] of Object.entries(fields)) form.set(key, value);
+    form.append('files', new File([png], 'photo.png', { type: 'image/png' }));
+
+    const headers = new Headers({ host: 'localhost:3000', origin: ORIGIN, cookie: as(ownerToken) });
+    headers.set('x-ra-csrf', csrf);
+    return POST(new Request(`${ORIGIN}/api/admin/media`, { method: 'POST', headers, body: form }));
+  }
+
+  async function createListing(): Promise<string> {
+    const { POST } = await import('@/app/api/admin/properties/route');
+    const response = await POST(
+      request('/api/admin/properties', {
+        method: 'POST',
+        cookie: as(ownerToken),
+        headers: { 'x-ra-csrf': csrf },
+        body: JSON.stringify({ ...validProperty, titleFr: 'Bien pour test média' }),
+      }),
+    );
+    const body = await json(response);
+    return (body.data as Record<string, unknown>).id as string;
+  }
+
+  it('accepts an attributed, bilingually described photograph', async () => {
+    const id = await createListing();
+    const response = await uploadAs(id, {
+      altFr: 'Salon lumineux',
+      altAr: 'صالة مضيئة',
+      credit: 'RAYANE AFFAIRE',
+      license: '© RAYANE AFFAIRE',
+    });
+    expect(response.status).toBe(200);
+    const body = await json(response);
+    const files = body.data as { url: string }[];
+    expect(files[0].url).toMatch(/^\/api\/media\/[a-f0-9-]{36}\.png$/);
+  });
+
+  it('refuses a photograph with no credit or licence (422)', async () => {
+    const id = await createListing();
+    const response = await uploadAs(id, { altFr: 'Salon', altAr: 'صالة' });
+    expect(response.status).toBe(422);
+    const body = await json(response);
+    const fields = (body.error as Record<string, unknown>).fields as Record<string, string>;
+    expect(fields.credit).toBe('admin.validation.attributionRequired');
+    expect(fields.license).toBe('admin.validation.attributionRequired');
+  });
+
+  it('refuses an upload with only one language of alt text', async () => {
+    const id = await createListing();
+    const response = await uploadAs(id, {
+      altFr: 'Salon',
+      credit: 'Agence',
+      license: '© Agence',
+    });
+    expect(response.status).toBe(422);
+    const body = await json(response);
+    const fields = (body.error as Record<string, unknown>).fields as Record<string, string>;
+    expect(fields.altAr).toBe('admin.validation.altRequired');
+  });
+
+  it('refuses to attach media to a listing that does not exist', async () => {
+    const response = await uploadAs('11111111-1111-4111-8111-111111111111', {
+      altFr: 'Salon',
+      altAr: 'صالة',
+      credit: 'Agence',
+      license: '© Agence',
+    });
+    expect(response.status).toBe(404);
+  });
+
+  it('refuses an upload without a session', async () => {
+    const { POST } = await import('@/app/api/admin/media/route');
+    const form = new FormData();
+    form.set('entityType', 'property');
+    form.set('entityId', '11111111-1111-4111-8111-111111111111');
+    const headers = new Headers({ host: 'localhost:3000', origin: ORIGIN });
+    headers.set('x-ra-csrf', csrf);
+    const response = await POST(
+      new Request(`${ORIGIN}/api/admin/media`, { method: 'POST', headers, body: form }),
+    );
+    expect(response.status).toBe(401);
+  });
+});
+
 describe('public inquiry endpoint', () => {
   it('accepts a valid inquiry and stores it', async () => {
     const { POST } = await import('@/app/api/inquiries/route');

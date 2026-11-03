@@ -37,10 +37,28 @@ export function MediaManager({
   const [license, setLicense] = React.useState('');
   const inputRef = React.useRef<HTMLInputElement>(null);
 
+  /**
+   * Attribution is not optional: every published photograph must state who took
+   * it and under which licence, because the brief forbids publishing client
+   * imagery without documented rights. The server enforces the same rule, so
+   * this check is UX, not security.
+   */
+  const attributionMissing = !credit.trim() || !license.trim();
+  const altMissing = !altFr.trim() || !altAr.trim();
+  const canUpload = Boolean(entityId) && !attributionMissing && !altMissing;
+
   const onFiles = async (files: FileList | null) => {
     if (!files?.length) return;
     if (!entityId) {
       toast.error(msg('admin.validation.mediaRequiredForPublish'));
+      return;
+    }
+    if (altMissing) {
+      toast.error(msg('admin.validation.altRequired'));
+      return;
+    }
+    if (attributionMissing) {
+      toast.error(msg('admin.validation.attributionRequired'));
       return;
     }
 
@@ -131,7 +149,7 @@ export function MediaManager({
               placeholder="صالة مضيئة بإطلالة على البحر"
             />
           </Field>
-          <Field label="Crédit" htmlFor="credit">
+          <Field label={`Crédit *`} htmlFor="credit">
             <Input
               id="credit"
               value={credit}
@@ -140,7 +158,7 @@ export function MediaManager({
               placeholder="Photo : nom du photographe"
             />
           </Field>
-          <Field label="Licence" htmlFor="license">
+          <Field label={`Licence *`} htmlFor="license">
             <Input
               id="license"
               value={license}
@@ -165,7 +183,7 @@ export function MediaManager({
             type="button"
             variant="outline"
             size="sm"
-            disabled={uploading || !entityId}
+            disabled={uploading || !canUpload}
             onClick={() => inputRef.current?.click()}
           >
             {uploading ? <Loader2 className="animate-spin" /> : <Upload />}
@@ -174,6 +192,9 @@ export function MediaManager({
           <p className="text-2xs text-ink-400">{t.admin.form.uploadHint}</p>
         </div>
         {!entityId && <p className="mt-2 text-2xs text-warning">{t.admin.form.noMedia}</p>}
+        {entityId && (attributionMissing || altMissing) && (
+          <p className="mt-2 text-2xs text-ink-500">{msg('admin.validation.attributionRequired')}</p>
+        )}
       </div>
 
       {items.length === 0 ? (

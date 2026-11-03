@@ -535,6 +535,10 @@ export const fr = {
         'Impossible de publier : ajoutez au moins une photographie.',
       coordinatesRequiredForPublish:
         'Impossible de publier sur la carte : renseignez une position vérifiée.',
+      altRequired:
+        'Renseignez le texte alternatif de la photo en français et en arabe.',
+      attributionRequired:
+        'Renseignez le crédit (auteur) et la licence de la photo : une image sans droits documentés ne peut pas être publiée.',
     },
     inquiry: {
       detail: 'Détail de la demande',

@@ -532,6 +532,9 @@ export const ar: Dictionary = {
       mediaRequiredForPublish: 'لا يمكن النشر: أضف صورة واحدة على الأقل.',
       coordinatesRequiredForPublish:
         'لا يمكن العرض على الخريطة: أدخل موقعاً مُعايناً.',
+      altRequired: 'أدخل النص البديل للصورة بالفرنسية والعربية.',
+      attributionRequired:
+        'أدخل اسم المصور والرخصة: لا يمكن نشر صورة دون حقوق موثقة.',
     },
     inquiry: {
       detail: 'تفاصيل الطلب',

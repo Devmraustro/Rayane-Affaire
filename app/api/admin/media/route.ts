@@ -2,6 +2,7 @@ import { requireAdmin, HttpError } from '@/lib/server/authz';
 import { credentialsFromRequest } from '@/lib/server/credentials';
 import { storeImage, UploadError } from '@/lib/server/upload';
 import { addMedia, deleteMedia } from '@/lib/db/media';
+import { getDb } from '@/db/client';
 import { consume, hashClientId } from '@/lib/server/rate-limit';
 import { clientIp, ok, fail } from '@/lib/server/api';
 import { RATE_LIMITS, UPLOAD } from '@/lib/config';
@@ -52,6 +53,28 @@ export async function POST(request: Request): Promise<Response> {
     return fail('VALIDATION', 'Invalid entityId.', 422);
   }
 
+  // Ownership check: a media row may only be attached to a listing that exists,
+  // otherwise an arbitrary UUID could be used as an orphaned file store.
+  const table = entityType === 'property' ? 'properties' : 'vehicles';
+  const exists = getDb().prepare(`SELECT 1 AS ok FROM ${table} WHERE id = ?`).get(entityId);
+  if (!exists) return fail('NOT_FOUND', 'Listing not found.', 404);
+
+  // Attribution is mandatory: publishing photography without documented rights
+  // is exactly what the brief forbids, so the rule is enforced here and not only
+  // in the upload widget. Alt text is required for accessibility in both locales.
+  if (!altFr.trim() || !altAr.trim()) {
+    return fail('VALIDATION', 'Bilingual alt text is required.', 422, {
+      altFr: 'admin.validation.altRequired',
+      altAr: 'admin.validation.altRequired',
+    });
+  }
+  if (!credit || !license) {
+    return fail('VALIDATION', 'Credit and licence are required.', 422, {
+      credit: 'admin.validation.attributionRequired',
+      license: 'admin.validation.attributionRequired',
+    });
+  }
+
   const files = formData.getAll('files').filter((value): value is File => value instanceof File);
   if (files.length === 0) return fail('VALIDATION', 'No file provided.', 422);
   if (files.length > UPLOAD.maxFilesPerRequest) {
@@ -66,8 +89,8 @@ export async function POST(request: Request): Promise<Response> {
         entityType,
         entityId,
         url: stored.url,
-        altFr: altFr || 'Photo du bien',
-        altAr: altAr || 'صورة العقار',
+        altFr,
+        altAr,
         credit,
         sourceUrl,
         license,

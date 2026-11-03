@@ -2,8 +2,10 @@
   "name": "rayane-affaire",
   "version": "1.0.0",
   "private": true,
-  "description": "RAYANE AFFAIRE — premium real estate & vehicle marketplace platform (Béjaïa, Algeria)",
-  "engines": { "node": ">=22.5.0" },
+  "description": "RAYANE AFFAIRE \u2014 premium real estate & vehicle marketplace platform (B\u00e9ja\u00efa, Algeria)",
+  "engines": {
+    "node": ">=22.5.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -15,7 +17,9 @@
     "db:migrate": "tsx db/migrate.ts",
     "db:seed:demo": "tsx db/seed-demo.ts",
     "db:seed:admin": "tsx db/seed-admin.ts",
-    "verify": "npm run typecheck && npm run lint && npm run test && npm run build"
+    "verify": "npm run typecheck && npm run lint && npm run test && npm run build",
+    "smoke": "tsx scripts/smoke.ts",
+    "db:reset": "tsx db/migrate.ts --reset"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.6",

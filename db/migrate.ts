@@ -9,7 +9,7 @@
  *   * Commune reference data is upserted (never deleted) because listings
  *     reference it via a RESTRICT foreign key.
  */
-import { readdirSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readdirSync, readFileSync, existsSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { getDb, applySchema, databasePath } from './client';
 import { BEJAIA_COMMUNES } from './communes';
@@ -44,7 +44,31 @@ function applyVersionedMigrations(db: ReturnType<typeof getDb>): string[] {
   return done;
 }
 
+/**
+ * `npm run db:reset` — development only.
+ *
+ * Deletes the SQLite file (plus its WAL/SHM companions) so the next start begins
+ * from an empty, correctly migrated database. Refuses to run in production and
+ * asks for an explicit confirmation flag inside a non-interactive shell, because
+ * this destroys every listing, inquiry and account.
+ */
+function resetDatabase(): never {
+  if (process.env.NODE_ENV === 'production') {
+    console.error('✘ db:reset refuses to run with NODE_ENV=production.');
+    process.exit(1);
+  }
+  const path = databasePath();
+  for (const suffix of ['', '-wal', '-shm']) {
+    const target = `${path}${suffix}`;
+    if (existsSync(target)) rmSync(target, { force: true });
+  }
+  console.log(`✔ Removed ${path} (+ WAL/SHM). Run "npm run db:migrate" to recreate it.`);
+  process.exit(0);
+}
+
 function main(): void {
+  if (process.argv.includes('--reset')) resetDatabase();
+
   mkdirSync(join(process.cwd(), 'data'), { recursive: true });
   const db = getDb();
   applySchema(db);
