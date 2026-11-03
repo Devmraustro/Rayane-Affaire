@@ -15,7 +15,7 @@ Dernière exécution : 3 novembre 2026.
 | Types | `npx tsc --noEmit` | ✅ **0 erreur** |
 | Lint | `npm run lint` (`next lint`) | ✅ **0 avertissement, 0 erreur** |
 | Tests | `npm test` (`vitest run`) | ✅ **131 tests / 131 réussis**, 7 fichiers, ~4 s |
-| Build de production | `npm run build` | ✅ **compilé, 18 pages générées**, aucune erreur |
+| Build de production | `npm run build` | ✅ **compilé, 19 pages générées**, 36 entrées de route + middleware, aucune erreur |
 | Vérifications HTTP | `npm run smoke` | ✅ **14/14** (13 routes + absence de numéro factice) |
 | Parcours admin réel | `curl` (connexion → CRUD → upload → publication) | ✅ voir §6 |
 
@@ -110,6 +110,16 @@ Exécutées avec `curl` contre `npx next dev` sur le port 3000.
   vedette » de la page d'accueil, mais restent visibles dans le catalogue avec le
   badge « Démonstration ».
 
+### Remarque sur la fiabilité du script `smoke`
+
+Le serveur de développement et `next build` écrivent tous deux dans `.next`. Si
+le script `smoke` est lancé **pendant** un build de production, une requête peut
+échouer transitoirement (le serveur de développement recompile). Observé une
+fois, puis reproduction impossible : 3 exécutions consécutives sans échec, et un
+contrôle direct des 13 routes (`/` → 200 … `/admin` → 307, 17–199 ms chacune).
+**Conclusion : lancer `smoke` contre un serveur au repos** (ou contre la
+production, où aucun build ne tourne). Ce n'est pas un défaut applicatif.
+
 ### En-têtes de sécurité observés
 
 ```
@@ -127,31 +137,53 @@ développement ; en production le middleware émet `'nonce-…' 'strict-dynamic'
 
 ## 5. Build de production
 
+Sortie réelle (`npm run build`, extrait ; les lignes API sont regroupées) :
+
 ```
 ✓ Compiled successfully
   Linting and checking validity of types ...
-✓ Generating static pages (18/18)
+✓ Generating static pages (19/19)
+
 Route (app)                                 Size  First Load JS
-ƒ /                                       14.6 kB         157 kB
-ƒ /admin                                  504 B          107 kB
-ƒ /admin/calendar                         175 B          104 kB
-ƒ /admin/customers                        175 B          104 kB
-ƒ /admin/finances                         504 B          107 kB
-ƒ /admin/inquiries                       4.36 kB         144 kB
-ƒ /admin/login                           4.78 kB         134 kB
-ƒ /admin/properties                      2.93 kB         142 kB
-ƒ /admin/reservations                     175 B         104 kB
-ƒ /admin/settings                         175 B         104 kB
-ƒ /admin/vehicles                        2.93 kB         142 kB
-ƒ /api/admin/…  ƒ /api/auth/…  ƒ /api/inquiries  ƒ /api/media/[file]
-ƒ /contact  ƒ /map  ƒ /properties  ƒ /properties/[slug]
-○ /robots.txt  ○ /sitemap.xml  ƒ /services  ƒ /vehicles  ƒ /vehicles/[slug]
-ƒ Middleware 34.5 kB
+┌ ƒ /                                     14.6 kB         158 kB
+├ ƒ /_not-found                             175 B         104 kB
+├ ƒ /about                                   6 kB         147 kB
+├ ƒ /admin                                 504 B         107 kB
+├ ƒ /admin/calendar                         175 B         104 kB
+├ ƒ /admin/customers                        175 B         104 kB
+├ ƒ /admin/finances                        504 B         107 kB
+├ ƒ /admin/inquiries                      4.36 kB         145 kB
+├ ƒ /admin/login                          4.78 kB         136 kB
+├ ƒ /admin/properties                     2.93 kB         143 kB
+├ ƒ /admin/properties/[id]/edit             144 B         169 kB
+├ ƒ /admin/properties/new                   144 B         169 kB
+├ ƒ /admin/reservations                     175 B         104 kB
+├ ƒ /admin/settings                         175 B         104 kB
+├ ƒ /admin/vehicles                       2.93 kB         143 kB
+├ ƒ /admin/vehicles/[id]/edit               144 B         169 kB
+├ ƒ /admin/vehicles/new                     144 B         169 kB
+├ ƒ /api/admin/… (5 routes)                 175 B         104 kB
+├ ƒ /api/auth/login|logout                  175 B         104 kB
+├ ƒ /api/inquiries                          175 B         104 kB
+├ ƒ /api/media/[file]                       175 B         104 kB
+├ ƒ /contact                              2.49 kB         157 kB
+├ ƒ /credits                              2.84 kB         138 kB
+├ ƒ /map                                  5.02 kB         143 kB
+├ ƒ /properties                           4.01 kB         151 kB
+├ ƒ /properties/[slug]                    7.52 kB         194 kB
+├ ○ /robots.txt                             175 B         104 kB
+├ ƒ /services                             5.13 kB         141 kB
+├ ○ /sitemap.xml                            175 B         104 kB
+├ ƒ /vehicles                             5.55 kB         149 kB
+└ ƒ /vehicles/[slug]                      6.27 kB         180 kB
+
++ First Load JS shared by all                             103 kB
+ƒ Middleware                                           34.5 kB
 ```
 
-JS partagé : **103 kB**. Aucune erreur, aucun avertissement ESLint.
-
----
+**36 entrées de route** (26 pages, dont `robots.txt` et `sitemap.xml` générés,
++ 10 routes API) et le middleware. JS partagé : **103 kB**. Aucune erreur, aucun
+avertissement ESLint.
 
 ## 6. Ce qui n'est **pas** testé automatiquement
 
