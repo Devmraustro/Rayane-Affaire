@@ -34,6 +34,15 @@ export const BRAND = {
     fr: 'Location, vente et gestion immobilière, meublés de courte durée et vente de véhicules dans la wilaya de Béjaïa.',
     ar: 'الكراء والبيع والتسيير العقاري، والشقق المفروشة للإقامة القصيرة وبيع السيارات في ولاية بجاية.',
   },
+  /**
+   * Positioning when no vehicle is offered publicly at all — the client's current
+   * policy. The agency presents itself as what it publicly is: a real-estate
+   * agency. No vehicle word survives, in either language.
+   */
+  positioningRealEstate: {
+    fr: 'Vente et location immobilière, meublés de courte durée et gestion locative dans la wilaya de Béjaïa.',
+    ar: 'البيع والكراء العقاري، والشقق المفروشة للإقامة القصيرة والتسيير الإيجاري في ولاية بجاية.',
+  },
   /** Primary market. Verified against OSM administrative boundaries. */
   market: {
     wilaya: { fr: 'Wilaya de Béjaïa', ar: 'ولاية بجاية' },
@@ -78,9 +87,12 @@ export const PRIMARY_NAV: NavItem[] = [
 ];
 
 /**
- * Navigation for the current rental setting.
+ * Navigation for the current vehicle policy.
  *
- * With rental enabled, nothing changes. With rental disabled:
+ * When the vehicle section is hidden (the client's standing decision) the entry
+ * is removed outright — there is no public page for it to lead to.
+ *
+ * When it is public, the rental flag refines the label:
  *
  *   * if sale inventory exists, `/vehicles` stays in the menu but is relabelled
  *     "Véhicules à vendre" / "سيارات للبيع" — the catalogue is still a catalogue,
@@ -92,9 +104,15 @@ export const PRIMARY_NAV: NavItem[] = [
  * this function stays pure and testable.
  */
 export function primaryNavFor(options: {
+  /** Master switch — when explicitly false the entry disappears entirely. */
+  vehiclePublicVisible?: boolean;
   rentalEnabled: boolean;
   hasSaleInventory?: boolean;
 }): NavItem[] {
+  // Hidden section ⇒ no entry, whatever the rental flag says.
+  if (options.vehiclePublicVisible === false) {
+    return PRIMARY_NAV.filter((item) => item.labelKey !== 'vehicles');
+  }
   if (options.rentalEnabled) return PRIMARY_NAV;
   // Default to keeping the entry: a caller that forgets the flag should not
   // silently hide the sale catalogue.

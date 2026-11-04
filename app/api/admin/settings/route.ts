@@ -3,7 +3,11 @@ import { requireAdmin, HttpError } from '@/lib/server/authz';
 import { credentialsFromRequest } from '@/lib/server/credentials';
 import { ok, fail } from '@/lib/server/api';
 import { recordAudit } from '@/lib/server/audit';
-import { readAllSettings, setVehicleRentalEnabled } from '@/lib/db/settings';
+import {
+  readAllSettings,
+  setVehiclePublicVisible,
+  setVehicleRentalEnabled,
+} from '@/lib/db/settings';
 
 /**
  * PATCH /api/admin/settings
@@ -12,9 +16,9 @@ import { readAllSettings, setVehicleRentalEnabled } from '@/lib/db/settings';
  * of known keys, so an unknown field is rejected instead of silently ignored, and
  * a client cannot invent a setting the application does not read.
  *
- * Requires `manager` (not `editor`): whether the agency offers rental at all is a
- * business decision that removes a public page, so it is not something any
- * content editor should be able to change by accident.
+ * Requires `manager` (not `editor`): exposing or hiding the whole public vehicle
+ * section is a business decision that adds or removes a public area, so it is not
+ * something any content editor should be able to change by accident.
  *
  * Every mutation is authenticated against the database session row, checked
  * against the CSRF token, and written to the audit log with the previous and new
@@ -23,6 +27,9 @@ import { readAllSettings, setVehicleRentalEnabled } from '@/lib/db/settings';
 
 const patchSchema = z
   .object({
+    /** Master switch for the public vehicle section. */
+    vehiclePublicVisible: z.boolean().optional(),
+    /** Rental refinement of a visible section. */
     vehicleRentalEnabled: z.boolean().optional(),
   })
   .strict();
@@ -59,6 +66,13 @@ export async function PATCH(request: Request): Promise<Response> {
 
   const before = readAllSettings();
   const changed: Record<string, { from: unknown; to: unknown }> = {};
+
+  if (parsed.data.vehiclePublicVisible !== undefined) {
+    const next = setVehiclePublicVisible(parsed.data.vehiclePublicVisible);
+    if (next !== before.vehiclePublicVisible) {
+      changed.vehiclePublicVisible = { from: before.vehiclePublicVisible, to: next };
+    }
+  }
 
   if (parsed.data.vehicleRentalEnabled !== undefined) {
     const next = setVehicleRentalEnabled(parsed.data.vehicleRentalEnabled);

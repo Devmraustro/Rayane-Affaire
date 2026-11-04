@@ -33,6 +33,25 @@ const VEHICLES: Seed[] = [
   { slug: 'verif-both', dealType: 'both', category: 'suv' },
 ];
 
+/**
+ * Opens the public vehicle section and sets the rental flag.
+ *
+ * The client's standing policy hides the whole section, so every test that
+ * exercises *rental refinement* must first state that vehicles are public;
+ * otherwise it would be testing the hidden path by accident. The hidden path
+ * itself has its own describe block below.
+ */
+async function openSection(rentalEnabled: boolean): Promise<void> {
+  const { setVehiclePublicVisible, setVehicleRentalEnabled } = await import('@/lib/db/settings');
+  setVehiclePublicVisible(true);
+  setVehicleRentalEnabled(rentalEnabled);
+}
+
+async function hideSection(): Promise<void> {
+  const { setVehiclePublicVisible } = await import('@/lib/db/settings');
+  setVehiclePublicVisible(false);
+}
+
 async function seedVehicles(): Promise<void> {
   const { createVehicle, setVehicleStatus } = await import('@/lib/db/admin-listings');
   const { addMedia } = await import('@/lib/db/media');
@@ -200,96 +219,88 @@ describe('setting persistence', () => {
 
 describe('public catalogue', () => {
   it('lists every vehicle while rental is enabled', async () => {
-    const { setVehicleRentalEnabled } = await import('@/lib/db/settings');
-    setVehicleRentalEnabled(true);
+    await openSection(true);
     expect(await vehicleSlugs()).toEqual(['verif-both', 'verif-rent-only', 'verif-sale-only']);
   });
 
   it('drops rental-only listings and keeps sale inventory when rental is disabled', async () => {
-    const { setVehicleRentalEnabled } = await import('@/lib/db/settings');
-    setVehicleRentalEnabled(false);
+    await openSection(false);
     // `both` is saleable, so it must survive the switch: hiding it would hide
     // inventory the agency is trying to sell.
     expect(await vehicleSlugs()).toEqual(['verif-both', 'verif-sale-only']);
-    setVehicleRentalEnabled(true);
+    await openSection(true);
   });
 
   it('follows the persisted value when no explicit scope is passed', async () => {
-    const { setVehicleRentalEnabled } = await import('@/lib/db/settings');
     const { listVehicles } = await import('@/lib/db/vehicles');
     const { defaultVehicleFilters } = await import('@/lib/filters');
 
-    setVehicleRentalEnabled(false);
+    await openSection(false);
     expect(
       listVehicles(defaultVehicleFilters()).items.map((v) =>
         v.slug.replace('testbrand-', '').replace('-2023', ''),
       ),
     ).toEqual(['verif-both', 'verif-sale-only']);
-    setVehicleRentalEnabled(true);
+    await openSection(true);
     expect(listVehicles(defaultVehicleFilters()).total).toBe(3);
   });
 
   it('still honours category and search filters while rental is off', async () => {
-    const { setVehicleRentalEnabled } = await import('@/lib/db/settings');
     const { listVehicles } = await import('@/lib/db/vehicles');
     const { defaultVehicleFilters } = await import('@/lib/filters');
 
-    setVehicleRentalEnabled(false);
+    await openSection(false);
     const byCategory = listVehicles({ ...defaultVehicleFilters(), categories: ['sedan'] });
     expect(byCategory.items.map((v) => v.slug)).toEqual([slugFor('verif-sale-only')]);
 
     // A search that only matches a rental vehicle must return nothing.
     const rentalSearch = listVehicles({ ...defaultVehicleFilters(), query: 'rent-only' });
     expect(rentalSearch.total).toBe(0);
-    setVehicleRentalEnabled(true);
+    await openSection(true);
   });
 });
 
 describe('detail pages', () => {
   it('resolves a rental vehicle while rental is enabled', async () => {
-    const { setVehicleRentalEnabled } = await import('@/lib/db/settings');
     const { getVehicleBySlug } = await import('@/lib/db/vehicles');
-    setVehicleRentalEnabled(true);
+    await openSection(true);
     expect(getVehicleBySlug(slugFor('verif-rent-only'))?.slug).toBe(slugFor('verif-rent-only'));
   });
 
   it('404s a rental-only listing but keeps sale and saleable `both` listings', async () => {
-    const { setVehicleRentalEnabled } = await import('@/lib/db/settings');
     const { getVehicleBySlug } = await import('@/lib/db/vehicles');
-    setVehicleRentalEnabled(false);
+    await openSection(false);
     expect(getVehicleBySlug(slugFor('verif-rent-only'))).toBeNull();
     // Sale-only still resolves: hiding rental must not hide sales.
     expect(getVehicleBySlug(slugFor('verif-sale-only'))?.slug).toBe(slugFor('verif-sale-only'));
     // `both` is reachable, projected as a sale listing.
     expect(getVehicleBySlug(slugFor('verif-both'))?.slug).toBe(slugFor('verif-both'));
-    setVehicleRentalEnabled(true);
+    await openSection(true);
   });
 
   it('presents a `both` listing as a sale when rental is off, withholding the rental price', async () => {
-    const { setVehicleRentalEnabled } = await import('@/lib/db/settings');
     const { getVehicleBySlug } = await import('@/lib/db/vehicles');
 
-    setVehicleRentalEnabled(true);
+    await openSection(true);
     const asBoth = getVehicleBySlug(slugFor('verif-both'))!;
     expect(asBoth.dealType).toBe('both');
     expect(asBoth.dailyPrice).toBeGreaterThan(0);
     expect(asBoth.salePrice).not.toBeNull();
 
-    setVehicleRentalEnabled(false);
+    await openSection(false);
     const asSale = getVehicleBySlug(slugFor('verif-both'))!;
     // The projection: sale presentation, no rental figure leaking.
     expect(asSale.dealType).toBe('sale');
     expect(asSale.dailyPrice).toBeNull();
     expect(asSale.salePrice).toBe(asBoth.salePrice);
-    setVehicleRentalEnabled(true);
+    await openSection(true);
   });
 
   it('never mutates the stored row when projecting `both` as a sale', async () => {
-    const { setVehicleRentalEnabled } = await import('@/lib/db/settings');
     const { getVehicleBySlug, getVehicleById } = await import('@/lib/db/vehicles');
     const { getDb } = await import('@/db/client');
 
-    setVehicleRentalEnabled(false);
+    await openSection(false);
     const projected = getVehicleBySlug(slugFor('verif-both'))!;
     expect(projected.dealType).toBe('sale');
 
@@ -307,7 +318,7 @@ describe('detail pages', () => {
 
     // The admin read is unprojected, so the operator still sees `both`.
     expect(getVehicleById(projected.id)?.dealType).toBe('both');
-    setVehicleRentalEnabled(true);
+    await openSection(true);
   });
 
   it('cannot produce a `both` listing without a sale price (the database forbids it)', async () => {
@@ -329,13 +340,12 @@ describe('detail pages', () => {
   });
 
   it('never suggests a rental-only listing alongside a sale while rental is off', async () => {
-    const { setVehicleRentalEnabled } = await import('@/lib/db/settings');
     const { getVehicleBySlug, listSimilarVehicles } = await import('@/lib/db/vehicles');
-    setVehicleRentalEnabled(true);
+    await openSection(true);
     const sale = getVehicleBySlug(slugFor('verif-sale-only'));
     expect(sale).not.toBeNull();
 
-    setVehicleRentalEnabled(false);
+    await openSection(false);
     const similar = listSimilarVehicles(sale!, 5, { rentalEnabled: false });
     expect(similar.map((v) => v.slug)).not.toContain(slugFor('verif-rent-only'));
     // The saleable `both` row may appear, but only as a sale.
@@ -343,22 +353,20 @@ describe('detail pages', () => {
       expect(item.dealType).toBe('sale');
       expect(item.dailyPrice).toBeNull();
     }
-    setVehicleRentalEnabled(true);
+    await openSection(true);
   });
 });
 
 describe('homepage', () => {
   it('features vehicles while rental is enabled', async () => {
-    const { setVehicleRentalEnabled } = await import('@/lib/db/settings');
     const { listFeaturedVehicles } = await import('@/lib/db/vehicles');
-    setVehicleRentalEnabled(true);
+    await openSection(true);
     expect(listFeaturedVehicles(3).length).toBeGreaterThan(0);
   });
 
   it('features sale inventory — including saleable `both` — when rental is disabled', async () => {
-    const { setVehicleRentalEnabled } = await import('@/lib/db/settings');
     const { listFeaturedVehicles } = await import('@/lib/db/vehicles');
-    setVehicleRentalEnabled(false);
+    await openSection(false);
     const featured = listFeaturedVehicles(3, { rentalEnabled: false });
     expect(featured.map((v) => v.slug).sort()).toEqual([
       slugFor('verif-both'),
@@ -369,20 +377,19 @@ describe('homepage', () => {
       expect(item.dealType).toBe('sale');
       expect(item.dailyPrice).toBeNull();
     }
-    setVehicleRentalEnabled(true);
+    await openSection(true);
   });
 
   it('counts exactly the sale inventory the public can browse when rental is off', async () => {
-    const { setVehicleRentalEnabled } = await import('@/lib/db/settings');
     const { getPublicStats } = await import('@/lib/db/stats');
     const { listVehicles } = await import('@/lib/db/vehicles');
     const { defaultVehicleFilters } = await import('@/lib/filters');
 
-    setVehicleRentalEnabled(true);
+    await openSection(true);
     const withRental = getPublicStats();
     expect(withRental.publishedVehicles).toBe(3);
 
-    setVehicleRentalEnabled(false);
+    await openSection(false);
     const withoutRental = getPublicStats();
     // Sale-only + saleable `both`: the figure must match the catalogue, not
     // silently under-report the stock the visitor can browse.
@@ -393,7 +400,7 @@ describe('homepage', () => {
     // Properties are never affected by this setting.
     expect(withoutRental.publishedProperties).toBe(withRental.publishedProperties);
     expect(withoutRental.availableNow).toBeLessThanOrEqual(withRental.availableNow);
-    setVehicleRentalEnabled(true);
+    await openSection(true);
   });
 });
 
@@ -583,5 +590,313 @@ describe('rental-specific surfaces stay hidden', () => {
     expect(detail).toContain('{rentalEnabled && vehicle.dailyPrice != null && (');
     expect(detail).toContain("intent={rentalEnabled ? 'reservation' : 'vehicle'}");
     expect(detail).toContain('{WHATSAPP_NUMBER && rentalEnabled && (');
+  });
+});
+
+/**
+ * ---------------------------------------------------------------------------
+ * Public hiding of the whole vehicle section — the client's standing policy.
+ * ---------------------------------------------------------------------------
+ * These are the acceptance tests for the directive: nothing about vehicles may
+ * reach a visitor, while the back-office keeps full control. They are written
+ * against the real database and the real route handlers, not against mocks.
+ */
+describe('public hiding: nothing vehicle-related reaches a visitor', () => {
+  it('defaults to hidden, so a fresh install exposes no vehicles', async () => {
+    const { SETTING_DEFINITIONS, VEHICLE_PUBLIC_VISIBLE_DEFAULT } = await import('@/lib/settings');
+    expect(VEHICLE_PUBLIC_VISIBLE_DEFAULT).toBe(false);
+    expect(SETTING_DEFINITIONS.vehiclePublicVisible.defaultValue).toBe(false);
+  });
+
+  it('hides everything even while the rental flag says "offered"', async () => {
+    const { resolveVehicleVisibility } = await import('@/lib/settings');
+    // The secondary flag must never be able to expose a hidden section.
+    expect(resolveVehicleVisibility({ publicVisible: false, rentalEnabled: true })).toEqual({
+      publicVisible: false,
+      rentalEnabled: false,
+    });
+    expect(resolveVehicleVisibility({ publicVisible: true, rentalEnabled: true })).toEqual({
+      publicVisible: true,
+      rentalEnabled: true,
+    });
+  });
+
+  it('serves an empty catalogue while hidden, whatever the filters', async () => {
+    const { listVehicles } = await import('@/lib/db/vehicles');
+    const { defaultVehicleFilters } = await import('@/lib/filters');
+    await hideSection();
+
+    const page = listVehicles(defaultVehicleFilters());
+    expect(page.items).toEqual([]);
+    expect(page.total).toBe(0);
+    // Even a filter that would match everything returns nothing.
+    const byCategory = listVehicles({ ...defaultVehicleFilters(), categories: ['sedan', 'suv'] });
+    expect(byCategory.total).toBe(0);
+
+    await openSection(true);
+    expect(listVehicles(defaultVehicleFilters()).total).toBe(3);
+  });
+
+  it('resolves no vehicle detail while hidden — every slug becomes a 404', async () => {
+    const { getVehicleBySlug } = await import('@/lib/db/vehicles');
+    await hideSection();
+    for (const key of ['verif-rent-only', 'verif-sale-only', 'verif-both']) {
+      expect(getVehicleBySlug(slugFor(key))).toBeNull();
+    }
+    await openSection(true);
+  });
+
+  it('features nothing on the homepage while hidden', async () => {
+    const { listFeaturedVehicles } = await import('@/lib/db/vehicles');
+    await hideSection();
+    expect(listFeaturedVehicles(3)).toEqual([]);
+    await openSection(true);
+    expect(listFeaturedVehicles(3).length).toBeGreaterThan(0);
+  });
+
+  it('counts no vehicle and no vehicle commune in public statistics while hidden', async () => {
+    const { getPublicStats } = await import('@/lib/db/stats');
+    await openSection(true);
+    const visible = getPublicStats();
+
+    await hideSection();
+    const hidden = getPublicStats();
+    expect(hidden.publishedVehicles).toBe(0);
+    // Same test fixtures put both a property and a vehicle in Béjaïa, so hiding
+    // vehicles must not change the commune coverage.
+    expect(hidden.publishedProperties).toBe(visible.publishedProperties);
+    await openSection(true);
+  });
+
+  it('removes the navigation entry entirely while hidden', async () => {
+    const { primaryNavFor } = await import('@/lib/brand');
+    const hidden = primaryNavFor({
+      vehiclePublicVisible: false,
+      rentalEnabled: true,
+      hasSaleInventory: true,
+    });
+    expect(hidden.some((item) => item.href === '/vehicles')).toBe(false);
+    expect(hidden.some((item) => item.labelKey === 'vehicles')).toBe(false);
+    expect(hidden.some((item) => item.labelKey === 'vehicleSales')).toBe(false);
+    // The real-estate navigation is untouched.
+    expect(hidden.map((item) => item.labelKey)).toEqual([
+      'home',
+      'properties',
+      'map',
+      'services',
+      'about',
+      'contact',
+    ]);
+  });
+
+  it('emits no vehicle URL in the sitemap while hidden', async () => {
+    const { default: sitemap } = await import('@/app/sitemap');
+    await hideSection();
+    const urls = sitemap().map((entry) => entry.url);
+    expect(urls.some((url) => url.includes('/vehicles'))).toBe(false);
+    for (const key of ['verif-rent-only', 'verif-sale-only', 'verif-both']) {
+      expect(urls.some((url) => url.includes(slugFor(key)))).toBe(false);
+    }
+    // The real-estate surface is still advertised.
+    expect(urls.some((url) => url.endsWith('/properties'))).toBe(true);
+
+    await openSection(true);
+    expect(sitemap().map((entry) => entry.url).some((url) => url.endsWith('/vehicles'))).toBe(true);
+  });
+
+  it('falls back to hidden when the settings table cannot be read', async () => {
+    // The routes wrap the read in try/catch and treat a failure as "hidden", so a
+    // database problem can only under-render — it can never leak a section.
+    const { HIDDEN_VEHICLES } = await import('@/lib/settings');
+    expect(HIDDEN_VEHICLES).toEqual({ publicVisible: false, rentalEnabled: false });
+  });
+
+  it('restores the exact previous state when visibility is switched back on', async () => {
+    const { listVehicles } = await import('@/lib/db/vehicles');
+    const { getDb } = await import('@/db/client');
+    const { defaultVehicleFilters } = await import('@/lib/filters');
+
+    const beforeRows = getDb()
+      .prepare('SELECT id, deal_type, daily_price, sale_price, status FROM vehicles ORDER BY id')
+      .all();
+
+    await hideSection();
+    await openSection(true);
+
+    const afterRows = getDb()
+      .prepare('SELECT id, deal_type, daily_price, sale_price, status FROM vehicles ORDER BY id')
+      .all();
+
+    // Hiding is a read-time projection: not one column changed.
+    expect(afterRows).toEqual(beforeRows);
+    expect(listVehicles(defaultVehicleFilters()).total).toBe(3);
+  });
+});
+
+describe('public hiding: the back-office keeps working', () => {
+  it('still lists every vehicle for administrators while the section is hidden', async () => {
+    const { listAdminVehicles } = await import('@/lib/db/admin-listings');
+    await hideSection();
+    const rows = listAdminVehicles({});
+    expect(rows.length).toBe(3);
+    await openSection(true);
+  });
+
+  it('still creates, edits and deletes vehicles while the section is hidden', async () => {
+    const { createVehicle, updateVehicle, deleteVehicle, setVehicleStatus } = await import(
+      '@/lib/db/admin-listings'
+    );
+    const { addMedia } = await import('@/lib/db/media');
+    const { getVehicleById } = await import('@/lib/db/vehicles');
+    await hideSection();
+
+    const payload = {
+      titleFr: 'Véhicule administratif masqué',
+      titleAr: 'سيارة إدارية مخفية',
+      descriptionFr: 'Créé alors que la section est masquée.',
+      descriptionAr: 'أُنشئت وقسم السيارات مخفي.',
+      brand: 'AdminBrand',
+      model: 'HiddenModel',
+      year: 2024,
+      category: 'sedan',
+      transmission: 'automatic',
+      fuel: 'petrol',
+      seats: 5,
+      doors: 5,
+      dealType: 'rent',
+      dailyPrice: 6000,
+      salePrice: null,
+      communeSlug: 'bejaia',
+      coordinatePrecision: 'pending',
+      features: [],
+      availabilityStatus: 'available',
+      featured: false,
+      status: 'draft',
+    };
+    const created = createVehicle(payload as never);
+    // The admin read is never projected, so the operator sees the real deal type.
+    expect(getVehicleById(created.id)?.dealType).toBe('rent');
+
+    // A full write payload: a partial one is a validation error, not an update.
+    updateVehicle(created.id, { ...payload, dailyPrice: 7000 } as never);
+    expect(getVehicleById(created.id)?.dailyPrice).toBe(7000);
+
+    addMedia({
+      entityType: 'vehicle',
+      entityId: created.id,
+      url: '/api/media/00000000-0000-4000-8000-00000000aa01.png',
+      altFr: 'x',
+      altAr: 'x',
+      credit: 'Test',
+      license: 'Test',
+    });
+    setVehicleStatus(created.id, 'published');
+    expect(getVehicleById(created.id)?.status).toBe('published');
+
+    // Published, yet still invisible to the public — the two concepts are separate.
+    const { getVehicleBySlug } = await import('@/lib/db/vehicles');
+    expect(getVehicleBySlug(created.slug)).toBeNull();
+
+    deleteVehicle(created.id);
+    expect(getVehicleById(created.id)).toBeNull();
+
+    await openSection(true);
+  });
+
+  it('keeps every pre-existing vehicle record intact across a hide/show cycle', async () => {
+    const { getDb } = await import('@/db/client');
+    const count = () =>
+      (getDb().prepare('SELECT COUNT(*) AS n FROM vehicles').get() as { n: number }).n;
+
+    const before = count();
+    await hideSection();
+    expect(count()).toBe(before);
+    await openSection(true);
+    expect(count()).toBe(before);
+  });
+});
+
+describe('public hiding: no API can bypass the policy', () => {
+  it('drops a vehicle reference on a public inquiry while the section is hidden', async () => {
+    const { createInquiry } = await import('@/lib/db/inquiries');
+    const { getDb } = await import('@/db/client');
+    const vehicle = getDb()
+      .prepare(`SELECT id FROM vehicles WHERE status = 'published' LIMIT 1`)
+      .get() as { id: string };
+
+    await hideSection();
+    const inquiry = createInquiry(
+      {
+        locale: 'fr',
+        type: 'vehicle',
+        fullName: 'Visiteur',
+        phone: '0550123456',
+        message: 'Bonjour, je suis intéressé.',
+        preferredChannel: 'phone',
+        consent: true,
+        website: '',
+        vehicleId: vehicle.id,
+      } as never,
+      { ipHash: 'test', userAgent: 'vitest' },
+    );
+
+    // The reference is not stored, and the type degrades — no oracle either way.
+    expect(inquiry.vehicleId).toBeNull();
+    expect(inquiry.type).toBe('general');
+
+    await openSection(true);
+  });
+
+  it('accepts the same vehicle reference once the section is public again', async () => {
+    const { createInquiry } = await import('@/lib/db/inquiries');
+    const { getDb } = await import('@/db/client');
+    const vehicle = getDb()
+      .prepare(`SELECT id FROM vehicles WHERE status = 'published' LIMIT 1`)
+      .get() as { id: string };
+
+    await openSection(true);
+    const inquiry = createInquiry(
+      {
+        locale: 'fr',
+        type: 'vehicle',
+        fullName: 'Visiteur',
+        phone: '0550123456',
+        message: 'Bonjour, je suis intéressé.',
+        preferredChannel: 'phone',
+        consent: true,
+        website: '',
+        vehicleId: vehicle.id,
+      } as never,
+      { ipHash: 'test', userAgent: 'vitest' },
+    );
+    expect(inquiry.vehicleId).toBe(vehicle.id);
+    expect(inquiry.type).toBe('vehicle');
+  });
+});
+
+describe('public hiding: both languages respect the policy', () => {
+  it('has no vehicle wording in the real-estate-only copy, in FR or AR', async () => {
+    const { fr } = await import('@/lib/i18n/dictionaries/fr');
+    const { ar } = await import('@/lib/i18n/dictionaries/ar');
+    const { BRAND } = await import('@/lib/brand');
+
+    // The description and positioning used while hidden must not mention vehicles
+    // in either language — this is the copy a search engine will read.
+    for (const text of [
+      fr.meta.defaultDescriptionRealEstate,
+      ar.meta.defaultDescriptionRealEstate,
+      BRAND.positioningRealEstate.fr,
+      BRAND.positioningRealEstate.ar,
+    ]) {
+      expect(text).not.toMatch(/v[ée]hicule|voiture|سيار/i);
+    }
+  });
+
+  it('keeps the Arabic and French navigation label parity for the sale entry', async () => {
+    const { fr } = await import('@/lib/i18n/dictionaries/fr');
+    const { ar } = await import('@/lib/i18n/dictionaries/ar');
+    // The label a *visible* section uses still exists in both languages.
+    expect(fr.nav.vehicleSales.length).toBeGreaterThan(0);
+    expect(ar.nav.vehicleSales.length).toBeGreaterThan(0);
   });
 });

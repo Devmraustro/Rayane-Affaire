@@ -8,6 +8,9 @@
 export const fr = {
   meta: {
     defaultTitle: 'RAYANE AFFAIRE — Immobilier & véhicules à Béjaïa',
+    // Title while the vehicle section is hidden: the <title> is the single most
+    // visible public string, so it must not promise a section that 404s.
+    defaultTitleRealEstate: 'RAYANE AFFAIRE — Agence immobilière à Béjaïa',
     defaultDescription:
       'Location et vente de biens immobiliers, meublés de courte durée et location de véhicules dans la wilaya de Béjaïa. Des annonces vérifiées, des prix annoncés.',
     // Site-wide description when the agency does not rent vehicles. Metadata is
@@ -16,6 +19,11 @@ export const fr = {
     // brief forbids.
     defaultDescriptionNoRental:
       'Location et vente de biens immobiliers, meublés de courte durée et vente de véhicules dans la wilaya de Béjaïa. Des annonces vérifiées, des prix annoncés.',
+    // Site-wide description when the vehicle section is hidden entirely: the
+    // agency presents itself as a real-estate agency, because that is now the
+    // whole public offer.
+    defaultDescriptionRealEstate:
+      'Agence immobilière à Béjaïa : vente et location d’appartements, de villas, de locaux commerciaux et de terrains dans la wilaya de Béjaïa. Des annonces vérifiées, des prix annoncés.',
     propertiesTitle: 'Biens immobiliers',
     vehiclesTitle: 'Véhicules',
     mapTitle: 'Carte des biens',
@@ -174,6 +182,13 @@ export const fr = {
     heroTitle: 'Trouvez le bien qui vous ressemble.',
     heroSubtitle:
       'Location annuelle, meublés de courte durée, vente et location de véhicules. Chaque annonce est vérifiée par notre équipe avant publication.',
+    // Subtitle while no vehicle is offered publicly at all.
+    heroSubtitleRealEstate:
+      'Location annuelle, meublés de courte durée, vente et achat de biens immobiliers. Chaque annonce est vérifiée par notre équipe avant publication.',
+    heroEyebrowRealEstate: 'Immobilier à Béjaïa & sa région',
+    heroEyebrowVehicles: 'Béjaïa & sa région',
+    logoTagline: 'Immobilier & Véhicules',
+    logoTaglineRealEstate: 'Agence immobilière',
     heroCtaPrimary: 'Explorer les biens',
     heroCtaSecondary: 'Louer un véhicule',
     // Secondary CTA when the agency sells vehicles but does not rent them.
@@ -422,6 +437,8 @@ export const fr = {
 
   footer: {
     tagline: 'Immobilier et véhicules dans la wilaya de Béjaïa.',
+    // Footer blurb while no vehicle is offered publicly.
+    taglineRealEstate: 'L’immobilier dans la wilaya de Béjaïa : vente, location et gestion.',
     navigation: 'Navigation',
     contact: 'Contact',
     legal: 'Informations',
@@ -619,17 +636,29 @@ export const fr = {
       demoRecords: 'Annonces de démonstration',
       demoRecordsNote:
         'Les annonces de démonstration sont identifiées dans l’interface publique et exclues des statistiques.',
+      vehiclePublicVisible: {
+        title: 'Section véhicules sur le site public',
+        body:
+          'Interrupteur principal. Désactivé, le site public ne montre plus rien des véhicules : ni menu, ni catalogue, ni fiche, ni chiffre, ni plan du site, ni métadonnée. Les URL véhicules répondent 404. La gestion des véhicules dans le back-office reste entièrement fonctionnelle : aucune annonce n’est supprimée.',
+        on: 'Section véhicules publique',
+        off: 'Section véhicules masquée',
+        onHint: 'Les visiteurs voient la section véhicules sur le site public.',
+        offHint:
+          'Le site public n’expose aucun véhicule. Le back-office conserve tout l’inventaire et permet de le gérer normalement.',
+        note:
+          'Réactiver cette option restaure la section telle qu’elle était : aucune donnée n’est perdue, aucune migration n’est nécessaire.',
+      },
       vehicleRental: {
         title: 'Location de véhicules',
         body:
-          'Indiquez si l’agence propose réellement la location de véhicules (flotte propre ou partenaire). Désactivée, l’option retire les annonces de location et les actions de location, mais conserve la vente : le menu affiche « Véhicules à vendre », le catalogue, la une, les statistiques et le plan du site continuent d’exposer les véhicules à vendre. Une annonce « location et vente » reste visible en vente, sans son prix de location.',
+          'S’applique uniquement lorsque la section véhicules est publique. Désactivée, l’option retire les annonces et les actions de location mais conserve la vente : le menu affiche « Véhicules à vendre », et le catalogue, la une, les statistiques et le plan du site continuent d’exposer les véhicules à vendre.',
         on: 'Location activée',
         off: 'Location désactivée',
         onHint: 'Les véhicules à louer sont visibles sur le site public.',
         offHint:
           'Seuls les véhicules à vendre restent visibles. Les annonces de location sont masquées, sans être supprimées.',
-        saleUnaffected:
-          'La vente de véhicules et tout le catalogue immobilier ne sont pas concernés par ce réglage.',
+        note:
+          'Sans effet tant que la section véhicules est masquée : réglage secondaire, il ne peut pas rendre visible une section cachée.',
       },
     },
     seedWarning:

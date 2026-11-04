@@ -1,6 +1,6 @@
 import '@/lib/server/guard';
 import { getDb } from '@/db/client';
-import { isVehicleRentalEnabled } from './settings';
+import { getVehicleVisibility } from './settings';
 import { SAFE_PROJECTION_SQL } from '@/lib/settings';
 
 /**
@@ -28,13 +28,18 @@ export interface PublicStats {
 export function getPublicStats(): PublicStats {
   const db = getDb();
 
-  // Public statistics must not count inventory the catalogue hides — and must
-  // count inventory it shows. When rental is off, the vehicle figures still
-  // include the sale catalogue (otherwise the site would under-report stock the
-  // visitor can actually browse); only rental-only listings drop out.
-  const rentalEnabled = isVehicleRentalEnabled();
-  // Shared clause: empty when rental is on, `AND (...)` when it is off.
-  const visitableVehicles = rentalEnabled ? '' : ` AND ${SAFE_PROJECTION_SQL}`;
+  // Public statistics must count exactly what the public can reach. When the
+  // vehicle section is hidden nothing vehicle-related may be counted at all —
+  // a non-zero "vehicles" figure would advertise a section that 404s. While it is
+  // visible, the rental flag only trims rental-only rows.
+  const visibility = getVehicleVisibility();
+  // `0` is a valid SQLite predicate: no vehicle row contributes to any public
+  // figure while the section is hidden.
+  const visitableVehicles = !visibility.publicVisible
+    ? ' AND 0'
+    : visibility.rentalEnabled
+      ? ''
+      : ` AND ${SAFE_PROJECTION_SQL}`;
 
   const publishedProperties = (
     db

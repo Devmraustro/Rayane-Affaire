@@ -18,6 +18,7 @@ export function StatsBand({
   stats,
   t,
   locale,
+  vehiclePublicVisible = true,
   rentalEnabled = true,
 }: {
   stats: PublicStats;
@@ -29,6 +30,8 @@ export function StatsBand({
    * is only omitted when that count is zero — "0 véhicule" would read as an empty
    * fleet rather than "nothing for sale right now".
    */
+  /** Master switch: a hidden vehicle section contributes no public figure. */
+  vehiclePublicVisible?: boolean;
   rentalEnabled?: boolean;
 }) {
   if (stats.isEmpty) {
@@ -53,8 +56,12 @@ export function StatsBand({
   ] as const;
   // Rental off ⇒ the vehicle tile reflects sale inventory; hide it only when
   // there is genuinely nothing to count.
-  const items = allItems.filter(
-    (item) => item.key !== 'vehicles' || rentalEnabled || item.value > 0,
+  // Hidden section ⇒ the vehicle tile does not exist. While visible it is shown
+  // unless the real count is zero (an honest "nothing right now").
+  const items = allItems.filter((item) =>
+    item.key === 'vehicles'
+      ? vehiclePublicVisible && (rentalEnabled || item.value > 0)
+      : true,
   );
 
   return (

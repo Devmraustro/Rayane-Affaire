@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { Car } from 'lucide-react';
@@ -9,7 +10,8 @@ import { Pagination } from '@/components/shared/pagination';
 import { EmptyState } from '@/components/shared/empty-state';
 import { listVehicles } from '@/lib/db/vehicles';
 import { listCommunes } from '@/lib/db/communes';
-import { isVehicleRentalEnabled } from '@/lib/db/settings';
+import { getVehicleVisibility } from '@/lib/db/settings';
+import { HIDDEN_VEHICLES } from '@/lib/settings';
 import { parseVehicleSearchParams, toVehicleQuery } from '@/lib/filters';
 import { dictionaries } from '@/lib/i18n/dictionaries';
 import { resolveLocale } from '@/lib/i18n/locale';
@@ -24,7 +26,12 @@ export async function generateMetadata(): Promise<Metadata> {
   const jar = await cookies();
   const locale = resolveLocale(jar.get(LOCALE_COOKIE)?.value);
   const t = dictionaries[locale];
-  const rentalEnabled = isVehicleRentalEnabled();
+  const visibility = readVisibilitySafely();
+  // A hidden catalogue advertises nothing — not even via its title.
+  if (!visibility.publicVisible) {
+    return { title: t.errors.notFoundTitle, robots: { index: false, follow: false } };
+  }
+  const rentalEnabled = visibility.rentalEnabled;
   return {
     // With rental off, the catalogue is a sale catalogue, so the metadata and the
     // index/nofollow decision follow the actual content instead of the old copy.
@@ -40,9 +47,14 @@ export default async function VehiclesPage({ searchParams }: PageProps) {
   const locale = resolveLocale(jar.get(LOCALE_COOKIE)?.value);
   const t = dictionaries[locale];
 
+  const visibility = readVisibilitySafely();
+  // The client's policy: no public vehicle section. A 404 is the honest answer —
+  // it says "this does not exist here", which is true, and it leaks nothing.
+  if (!visibility.publicVisible) notFound();
+
   const filters = parseVehicleSearchParams(await searchParams);
   const communes = listCommunes({ activeOnly: true });
-  const rentalEnabled = isVehicleRentalEnabled();
+  const rentalEnabled = visibility.rentalEnabled;
   // `listVehicles` already excludes rentable listings when the flag is off; the
   // explicit pass keeps the intent visible at the call site.
   const results = listVehicles(filters, { rentalEnabled });
@@ -144,4 +156,17 @@ export default async function VehiclesPage({ searchParams }: PageProps) {
       </div>
     </PublicShell>
   );
+}
+
+/**
+ * Reads the policy without letting a database problem break the route.
+ * On failure the section is treated as hidden, so a broken database can only
+ * under-render — it can never expose inventory the client asked to hide.
+ */
+function readVisibilitySafely() {
+  try {
+    return getVehicleVisibility();
+  } catch {
+    return HIDDEN_VEHICLES;
+  }
 }

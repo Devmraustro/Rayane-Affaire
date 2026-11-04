@@ -11,7 +11,8 @@ import { ContactTeaser } from '@/components/home/contact-teaser';
 import { PublicShell } from '@/components/shared/public-shell';
 import { listCommunes } from '@/lib/db/communes';
 import { listFeaturedProperties, listFeaturedVehicles } from '@/lib/db/featured';
-import { isVehicleRentalEnabled } from '@/lib/db/settings';
+import { getVehicleVisibility } from '@/lib/db/settings';
+import { HIDDEN_VEHICLES } from '@/lib/settings';
 import { getPublicStats } from '@/lib/db/stats';
 import { dictionaries } from '@/lib/i18n/dictionaries';
 import { resolveLocale } from '@/lib/i18n/locale';
@@ -26,19 +27,36 @@ import { LOCALE_COOKIE } from '@/lib/config';
  * cookie and live statistics — so this changes no rendering mode.)
  */
 export async function generateMetadata(): Promise<Metadata> {
-  let rentalEnabled = true;
-  try {
-    rentalEnabled = isVehicleRentalEnabled();
-  } catch {
-    // Never break the homepage over a metadata lookup.
-    rentalEnabled = true;
-  }
-  const meta = dictionaries.fr.meta;
+  const visibility = readVisibilitySafely();
+  const jar = await cookies();
+  const locale = resolveLocale(jar.get(LOCALE_COOKIE)?.value);
+  const meta = dictionaries[locale].meta;
   return {
-    title: meta.defaultTitle,
-    description: rentalEnabled ? meta.defaultDescription : meta.defaultDescriptionNoRental,
+    // The homepage sets its own title, so it needs its own gate: leaving the
+    // vehicle title here would advertise a section that answers 404.
+    title: visibility.publicVisible ? meta.defaultTitle : meta.defaultTitleRealEstate,
+    // Three descriptions, not two: a hidden vehicle section must not leave a
+    // rental or vehicle-sale claim in the site's most visible marketing text.
+    description: !visibility.publicVisible
+      ? meta.defaultDescriptionRealEstate
+      : visibility.rentalEnabled
+        ? meta.defaultDescription
+        : meta.defaultDescriptionNoRental,
     alternates: { canonical: '/' },
   };
+}
+
+/**
+ * Reads the policy without ever letting a database problem break a page.
+ * On failure the safest fallback is "hidden": it can only under-render, whereas
+ * guessing "visible" could leak a section the client asked to hide.
+ */
+function readVisibilitySafely() {
+  try {
+    return getVehicleVisibility();
+  } catch {
+    return HIDDEN_VEHICLES;
+  }
 }
 
 /** Re-build the marketing page at most every 5 minutes (real DB counts). */
@@ -52,16 +70,20 @@ export default async function HomePage() {
   const communes = listCommunes({ activeOnly: true });
   const stats = getPublicStats();
   const properties = listFeaturedProperties(6);
-  const rentalEnabled = isVehicleRentalEnabled();
-  // The spotlight follows the inventory, not the rental service: with rental off
-  // it shows sale listings (and saleable `both` ones, projected as sales). The
-  // block is only skipped when there is genuinely nothing eligible to show, and
-  // then `FeaturedVehicles` would render its empty state instead of a dead CTA.
-  const vehicles = listFeaturedVehicles(3, { rentalEnabled });
+  const visibility = readVisibilitySafely();
+  const rentalEnabled = visibility.rentalEnabled;
+  // Hidden section ⇒ no vehicle block, no CTA, no statistic. While it is visible
+  // the spotlight follows the inventory; with rental off it shows sale listings.
+  const vehicles = visibility.publicVisible ? listFeaturedVehicles(3, { rentalEnabled }) : [];
 
   return (
     <PublicShell transparentHeader>
-      <Hero communes={communes} rentalEnabled={rentalEnabled} hasSaleInventory={vehicles.length > 0} />
+      <Hero
+        communes={communes}
+        vehiclePublicVisible={visibility.publicVisible}
+        rentalEnabled={rentalEnabled}
+        hasSaleInventory={vehicles.length > 0}
+      />
 
       <section className="border-b border-sand-200 bg-sand-50 py-10 sm:py-12">
         <div className="container-page">
@@ -75,7 +97,13 @@ export default async function HomePage() {
               </p>
             </div>
             <div className="w-full sm:max-w-2xl">
-              <StatsBand stats={stats} t={t} locale={locale} rentalEnabled={rentalEnabled} />
+              <StatsBand
+                stats={stats}
+                t={t}
+                locale={locale}
+                vehiclePublicVisible={visibility.publicVisible}
+                rentalEnabled={rentalEnabled}
+              />
             </div>
           </div>
         </div>
@@ -83,9 +111,15 @@ export default async function HomePage() {
 
       <FeaturedProperties items={properties} />
       {vehicles.length > 0 && <FeaturedVehicles items={vehicles} rentalEnabled={rentalEnabled} />}
-      <ServicesSection rentalEnabled={rentalEnabled} />
+      <ServicesSection
+        vehiclePublicVisible={visibility.publicVisible}
+        rentalEnabled={rentalEnabled}
+      />
       <WhyUsSection />
-      <AboutSection rentalEnabled={rentalEnabled} />
+      <AboutSection
+        vehiclePublicVisible={visibility.publicVisible}
+        rentalEnabled={rentalEnabled}
+      />
       <CoverageSection communes={communes} />
       <ContactTeaser />
     </PublicShell>

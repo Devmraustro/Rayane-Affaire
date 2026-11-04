@@ -3,8 +3,10 @@ import { getDb } from '@/db/client';
 import {
   SETTING_DEFINITIONS,
   parseBooleanSetting,
+  resolveVehicleVisibility,
   serialiseBooleanSetting,
   type SettingKey,
+  type VehicleVisibility,
 } from '@/lib/settings';
 
 /**
@@ -46,11 +48,25 @@ export function setBooleanSetting(key: SettingKey, value: boolean): boolean {
 }
 
 /**
- * Whether the agency offers vehicle rental.
+ * Whether the vehicle section is public at all.
  *
- * Single source of truth for the public site, the admin UI, the sitemap and the
- * catalogue. Called on every public render, so it is a single indexed primary-key
- * lookup — cheap enough not to warrant caching that could go stale after a save.
+ * Master switch: when this is false, nothing vehicle-related may reach a visitor.
+ */
+export function isVehiclePublicVisible(): boolean {
+  const definition = SETTING_DEFINITIONS.vehiclePublicVisible;
+  return getBooleanSetting(definition.key, definition.defaultValue);
+}
+
+/** Writes the public-visibility flag. Admin API only, after auth + CSRF. */
+export function setVehiclePublicVisible(value: boolean): boolean {
+  return setBooleanSetting(SETTING_DEFINITIONS.vehiclePublicVisible.key, value);
+}
+
+/**
+ * Whether the agency offers vehicle rental, *within a visible section*.
+ *
+ * Read on its own this says nothing about whether vehicles are public — use
+ * `getVehicleVisibility()` for that.
  */
 export function isVehicleRentalEnabled(): boolean {
   const definition = SETTING_DEFINITIONS.vehicleRental;
@@ -62,9 +78,28 @@ export function setVehicleRentalEnabled(value: boolean): boolean {
   return setBooleanSetting(SETTING_DEFINITIONS.vehicleRental.key, value);
 }
 
-/** Every boolean setting, for the admin settings page. */
-export function readAllSettings(): { vehicleRentalEnabled: boolean } {
-  return { vehicleRentalEnabled: isVehicleRentalEnabled() };
+/**
+ * The single authority every public surface must consult.
+ *
+ * Two primary-key reads per public render — cheap enough not to warrant a cache
+ * that could serve a stale "visible" answer after an operator hides the section.
+ */
+export function getVehicleVisibility(): VehicleVisibility {
+  return resolveVehicleVisibility({
+    publicVisible: isVehiclePublicVisible(),
+    rentalEnabled: isVehicleRentalEnabled(),
+  });
+}
+
+/** Every boolean setting, for the admin settings page and its API. */
+export function readAllSettings(): {
+  vehiclePublicVisible: boolean;
+  vehicleRentalEnabled: boolean;
+} {
+  return {
+    vehiclePublicVisible: isVehiclePublicVisible(),
+    vehicleRentalEnabled: isVehicleRentalEnabled(),
+  };
 }
 
 /** Creates the default rows so an operator can see the current value in the DB. */

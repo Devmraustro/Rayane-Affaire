@@ -82,11 +82,20 @@ export const STORAGE_KEYS = {
  */
 export const SETTINGS_KEYS = {
   /**
+   * Whether the whole vehicle section is exposed on the PUBLIC site.
+   *
+   * Default `false`: the client's standing decision is that vehicles are not part
+   * of the public offer. Vehicle management in the back-office is unaffected, and
+   * flipping this to `true` restores the entire public section without any data
+   * migration.
+   */
+  vehiclePublicVisible: 'vehicle_public_visible',
+  /**
    * Whether the agency actually offers vehicle rental (own fleet or a partner).
    *
-   * Default `true` preserves the pre-setting behaviour: the vehicle rental
-   * surface stays visible until an operator deliberately turns it off. Sale-only
-   * vehicle listings are unaffected either way.
+   * Only consulted while `vehiclePublicVisible` is on: it refines a visible
+   * vehicle section, it cannot make a hidden one appear. Default `true` preserves
+   * the pre-existing behaviour for deployments that switch vehicles back on.
    */
   vehicleRentalEnabled: 'vehicle_rental_enabled',
 } as const;

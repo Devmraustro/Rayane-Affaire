@@ -18,11 +18,14 @@ import type { Commune } from '@/types';
  */
 export function Hero({
   communes,
+  vehiclePublicVisible = true,
   rentalEnabled = true,
   hasSaleInventory = false,
 }: {
   communes: Commune[];
   /** When false the secondary "rent a vehicle" call to action is omitted. */
+  /** Master switch: a hidden vehicle section has no CTA at all. */
+  vehiclePublicVisible?: boolean;
   rentalEnabled?: boolean;
   /** Whether the sale catalogue has stock, so the secondary CTA leads somewhere. */
   hasSaleInventory?: boolean;
@@ -51,7 +54,7 @@ export function Hero({
         <div className="max-w-3xl">
           <p className="eyebrow text-gold-400">
             <MapPin aria-hidden="true" className="size-3.5" />
-            {t.home.heroEyebrow}
+            {vehiclePublicVisible ? t.home.heroEyebrow : t.home.heroEyebrowRealEstate}
           </p>
 
           <h1 className="mt-4 font-display text-[2.1rem] leading-[1.1] tracking-tight text-white sm:text-5xl lg:text-[3.65rem]">
@@ -59,7 +62,7 @@ export function Hero({
           </h1>
 
           <p className="mt-5 max-w-xl text-[0.9375rem] leading-relaxed text-white/75 sm:text-base">
-            {t.home.heroSubtitle}
+            {vehiclePublicVisible ? t.home.heroSubtitle : t.home.heroSubtitleRealEstate}
           </p>
 
           <div className="mt-7 flex flex-wrap items-center gap-3">
@@ -71,7 +74,7 @@ export function Hero({
             </Button>
             {/* With rental off the secondary CTA still points at the sale
                 catalogue — but only when there is sale stock to show. */}
-            {(rentalEnabled || hasSaleInventory) && (
+            {vehiclePublicVisible && (rentalEnabled || hasSaleInventory) && (
               <Button
                 asChild
                 size="lg"

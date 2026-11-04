@@ -17,7 +17,7 @@ import {
   OFFICE_ADDRESS,
 } from '@/lib/config';
 import { BRAND } from '@/lib/brand';
-import { VehicleRentalToggle } from '@/components/admin/vehicle-rental-toggle';
+import { SettingSwitch } from '@/components/admin/vehicle-rental-toggle';
 import { formatDate } from '@/lib/format';
 
 /**
@@ -51,7 +51,10 @@ export default async function AdminSettingsPage() {
       <h1 className="text-2xl">{t.admin.settings.title}</h1>
 
       {/* Operational switches. Placed first: they change what the public sees. */}
-      <VehicleRentalToggle enabled={settings.vehicleRentalEnabled} />
+      {/* Master switch first: it decides whether the rental refinement below has
+          any effect at all. */}
+      <SettingSwitch setting="vehiclePublicVisible" enabled={settings.vehiclePublicVisible} />
+      <SettingSwitch setting="vehicleRentalEnabled" enabled={settings.vehicleRentalEnabled} />
 
       <div className="grid gap-5 xl:grid-cols-2">
         {/* Brand */}

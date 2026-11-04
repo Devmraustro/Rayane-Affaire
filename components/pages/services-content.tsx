@@ -94,13 +94,21 @@ const CONTENT = {
   ],
 } as const;
 
-export function ServicesContent({ rentalEnabled = true }: { rentalEnabled?: boolean }) {
+export function ServicesContent({
+  vehiclePublicVisible = true,
+  rentalEnabled = true,
+}: {
+  vehiclePublicVisible?: boolean;
+  rentalEnabled?: boolean;
+}) {
   const { t, locale, dir } = useI18n();
   const Arrow = dir === 'rtl' ? ArrowLeft : ArrowRight;
   // The vehicle-rental service is listed only when the agency actually offers it;
   // the numbering is recomputed so the list never skips a number.
   const items = CONTENT[locale].filter(
-    (item) => rentalEnabled || !('kind' in item && item.kind === 'vehicleRental'),
+    (item) =>
+      (vehiclePublicVisible && rentalEnabled) ||
+      !('kind' in item && item.kind === 'vehicleRental'),
   );
 
   return (

@@ -23,6 +23,7 @@ import type { Commune } from '@/types';
  */
 export function SiteFooter({
   communes,
+  vehiclePublicVisible = true,
   rentalEnabled = true,
   hasSaleInventory = true,
 }: {
@@ -31,12 +32,17 @@ export function SiteFooter({
    * When false, the footer offers vehicle *sales* instead of rental — and drops
    * the entry entirely if there is no sale inventory to show.
    */
+  /**
+   * Master switch for the whole vehicle section. When false the entry is removed
+   * outright, whatever `rentalEnabled` says.
+   */
+  vehiclePublicVisible?: boolean;
   rentalEnabled?: boolean;
   /** Whether the sale catalogue has published real listings. */
   hasSaleInventory?: boolean;
 }) {
   const { t, locale, pick } = useI18n();
-  const navItems = primaryNavFor({ rentalEnabled, hasSaleInventory });
+  const navItems = primaryNavFor({ vehiclePublicVisible, rentalEnabled, hasSaleInventory });
   const year = new Date().getFullYear();
   const hasContact = Boolean(PHONE_NUMBER || CONTACT_EMAIL || OFFICE_ADDRESS || WHATSAPP_NUMBER);
 
@@ -45,8 +51,15 @@ export function SiteFooter({
       <div className="container-page py-14 lg:py-16">
         <div className="grid gap-10 lg:grid-cols-[1.4fr_1fr_1.2fr_1fr]">
           <div>
-            <Logo variant="light" locale={locale} showTagline />
-            <p className="mt-4 max-w-xs text-sm leading-6 text-white/55">{t.footer.tagline}</p>
+            <Logo
+              variant="light"
+              locale={locale}
+              showTagline
+              vehiclePublicVisible={vehiclePublicVisible}
+            />
+            <p className="mt-4 max-w-xs text-sm leading-6 text-white/55">
+              {vehiclePublicVisible ? t.footer.tagline : t.footer.taglineRealEstate}
+            </p>
             <div className="mt-5 flex gap-2">
               {SOCIAL_LINKS.facebook && (
                 <a

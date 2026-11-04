@@ -12,7 +12,14 @@ import { SmartImage } from '@/components/shared/smart-image';
  * No invented founding statistics: the only factual claim is the established
  * year, which is configuration.
  */
-export function AboutSection({ rentalEnabled = true }: { rentalEnabled?: boolean }) {
+export function AboutSection({
+  vehiclePublicVisible = true,
+  rentalEnabled = true,
+}: {
+  /** Master switch: when false the copy stops mentioning vehicles entirely. */
+  vehiclePublicVisible?: boolean;
+  rentalEnabled?: boolean;
+}) {
   const { t, locale, dir } = useI18n();
   const Arrow = dir === 'rtl' ? ArrowLeft : ArrowRight;
 
@@ -43,24 +50,31 @@ export function AboutSection({ rentalEnabled = true }: { rentalEnabled?: boolean
         <div>
           <p className="eyebrow">{t.about.title}</p>
           <h2 className="mt-3 text-2xl sm:text-3xl lg:text-[2.125rem] lg:leading-[1.15]">
-            {(rentalEnabled ? BRAND.positioning : BRAND.positioningWithoutRental)[locale]}
+            {(vehiclePublicVisible
+              ? rentalEnabled
+                ? BRAND.positioning
+                : BRAND.positioningWithoutRental
+              : BRAND.positioningRealEstate)[locale]}
           </h2>
           <p className="mt-5 text-[0.9375rem] leading-relaxed text-ink-500">
             {locale === 'ar'
               ? 'ريان أعمال وكالة مستقلة تعمل في ولاية بجاية. نبني عملنا على ثلاثة مبادئ: إعلانات مُعاينة، أسعار معلنة، وتوفر صادق. كل عقار منشور تتم زيارته من طرف فريقنا، وكل موقع نُشير إليه مصحوب بمستوى دقته.'
               : 'RAYANE AFFAIRE est une agence indépendante qui opère dans la wilaya de Béjaïa. Notre méthode tient en trois principes : des annonces vérifiées, des prix annoncés et une disponibilité honnête. Chaque bien publié est visité par notre équipe, et chaque position affichée est accompagnée de son niveau de précision.'}
           </p>
-          {/* Rental is a marketing claim here, not just a menu entry: it goes when
-              the service is switched off. Vehicle sales still remain on offer. */}
-          <p className="mt-4 text-[0.9375rem] leading-relaxed text-ink-500">
-            {rentalEnabled
-              ? locale === 'ar'
-                ? 'نرافق المالكين والمستأجرين والمشترين، ونضيف خدمة كراء السيارات لنفس العميل الذي يحتاج التنقل أثناء البحث أو الإقامة.'
-                : 'Nous accompagnons propriétaires, locataires et acquéreurs, et complétons notre offre par la location de véhicules — utile au même client qui a besoin de se déplacer pendant une recherche ou un séjour.'
-              : locale === 'ar'
-                ? 'نرافق المالكين والمستأجرين والمشترين، ونعرض أيضا سيارات للبيع بعد معاينتها.'
-                : 'Nous accompagnons propriétaires, locataires et acquéreurs, et proposons également des véhicules à la vente, chacun vérifié avant publication.'}
-          </p>
+          {/* Vehicles are a marketing claim here, not just a menu entry, so the
+              paragraph is not rendered at all when the section is hidden — a CSS
+              or `hidden` hide would still ship the words in the HTML. */}
+          {vehiclePublicVisible && (
+            <p className="mt-4 text-[0.9375rem] leading-relaxed text-ink-500">
+              {rentalEnabled
+                ? locale === 'ar'
+                  ? 'نرافق المالكين والمستأجرين والمشترين، ونضيف خدمة كراء السيارات لنفس العميل الذي يحتاج التنقل أثناء البحث أو الإقامة.'
+                  : 'Nous accompagnons propriétaires, locataires et acquéreurs, et complétons notre offre par la location de véhicules — utile au même client qui a besoin de se déplacer pendant une recherche ou un séjour.'
+                : locale === 'ar'
+                  ? 'نرافق المالكين والمستأجرين والمشترين، ونعرض أيضا سيارات للبيع بعد معاينتها.'
+                  : 'Nous accompagnons propriétaires, locataires et acquéreurs, et proposons également des véhicules à la vente, chacun vérifié avant publication.'}
+            </p>
+          )}
           <div className="mt-7 flex flex-wrap gap-3">
             <Button asChild variant="primary">
               <Link href="/about">

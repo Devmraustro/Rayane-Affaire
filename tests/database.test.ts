@@ -310,7 +310,11 @@ describe('vehicles', () => {
     });
     setVehicleStatus(created.id, 'published');
 
-    const fetched = getVehicleBySlug(created.slug);
+    // This exercises the publish cycle, not public reachability: the public read
+    // must pass `publicVisible` explicitly, otherwise it correctly depends on the
+    // persisted policy (which hides the section by default). Public visibility
+    // itself is covered by tests/vehicle-rental-setting.test.ts.
+    const fetched = getVehicleBySlug(created.slug, { publicVisible: true, rentalEnabled: true });
     expect(fetched?.brand).toBe('Renault');
     expect(fetched?.media).toHaveLength(1);
   });

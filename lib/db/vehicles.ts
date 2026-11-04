@@ -8,8 +8,8 @@ import {
   type VehicleRow,
 } from './mappers';
 import type { Paginated, Vehicle, VehicleFilters, VehicleSummary } from '@/types';
-import { isVehicleRentalEnabled } from './settings';
-import { SAFE_PROJECTION_SQL, projectVehicleForPublic } from '@/lib/settings';
+import { getVehicleVisibility, isVehiclePublicVisible } from './settings';
+import { SAFE_PROJECTION_SQL, projectVehicleForPublic, type VehicleVisibility } from '@/lib/settings';
 
 /**
  * Vehicle repository — mirrors `lib/db/properties.ts` semantics.
@@ -26,6 +26,11 @@ import { SAFE_PROJECTION_SQL, projectVehicleForPublic } from '@/lib/settings';
  * updated, so flipping the setting back restores the original presentation
  * exactly.
  *
+ * The master switch lives in `getVehicleVisibility()`. When the section is
+ * hidden, every PUBLIC reader below returns nothing at all — an empty page for
+ * listings, `null` for a detail lookup — so a forgotten `rentalEnabled={false}`
+ * at a call site cannot leak inventory.
+ *
  * Admin readers (see `lib/db/admin-listings.ts`) query the table directly and are
  * unaffected, so an operator keeps working with the full inventory.
  */
@@ -39,6 +44,23 @@ interface WhereClause {
 }
 
 /**
+ * Resolves the effective policy for a public reader, letting a test or an
+ * explicit call override it without going through the database.
+ */
+function resolveScope(scope: {
+  rentalEnabled?: boolean;
+  publicVisible?: boolean;
+}): VehicleVisibility {
+  if (scope.publicVisible !== undefined) {
+    return { publicVisible: scope.publicVisible, rentalEnabled: scope.rentalEnabled ?? true };
+  }
+  const visibility = getVehicleVisibility();
+  return scope.rentalEnabled === undefined
+    ? visibility
+    : { ...visibility, rentalEnabled: scope.rentalEnabled && visibility.publicVisible };
+}
+
+/**
  * `AND`-prefixed form of the public projection, for query strings that already
  * have a `WHERE` clause. The bare form is used as its own where-clause in
  * `buildVehicleWhere`.
@@ -49,8 +71,12 @@ function withProjection(rentalEnabled: boolean): string {
 
 export function buildVehicleWhere(
   filters: VehicleFilters,
-  scope: { includeDemo?: boolean; rentalEnabled?: boolean } = {},
+  scope: { includeDemo?: boolean; rentalEnabled?: boolean; publicVisible?: boolean } = {},
 ): WhereClause {
+  // A hidden section exposes no listing at all. `0` is a valid SQLite predicate
+  // and makes the intent unmistakable in a query log.
+  if (scope.publicVisible === false) return { sql: '0', params: [] };
+
   const clauses: string[] = [`v.status = 'published'`];
   const params: (string | number)[] = [];
 
@@ -183,12 +209,17 @@ function toSummary(
 
 export function listVehicles(
   filters: VehicleFilters,
-  scope: { includeDemo?: boolean; rentalEnabled?: boolean } = {},
+  scope: { includeDemo?: boolean; rentalEnabled?: boolean; publicVisible?: boolean } = {},
 ): Paginated<VehicleSummary> {
   const db = getDb();
-  // Default to the persisted setting so no caller can accidentally widen the
+  // Default to the persisted policy so no caller can accidentally widen the
   // public surface by forgetting to pass it.
-  const rentalEnabled = scope.rentalEnabled ?? isVehicleRentalEnabled();
+  const visibility = resolveScope(scope);
+  const rentalEnabled = visibility.rentalEnabled;
+  // Hidden section ⇒ nothing to serve, and no query to run either.
+  if (!visibility.publicVisible) {
+    return { items: [], total: 0, page: 1, pageSize: filters.pageSize, totalPages: 1 };
+  }
   const where = buildVehicleWhere(filters, { ...scope, rentalEnabled });
   const total = (
     db
@@ -283,9 +314,13 @@ function hydrate(row: VehicleRow, rentalEnabled: boolean): Vehicle | null {
 
 export function getVehicleBySlug(
   slug: string,
-  scope: { includeDemo?: boolean; rentalEnabled?: boolean } = {},
+  scope: { includeDemo?: boolean; rentalEnabled?: boolean; publicVisible?: boolean } = {},
 ): Vehicle | null {
-  const rentalEnabled = scope.rentalEnabled ?? isVehicleRentalEnabled();
+  const visibility = resolveScope(scope);
+  // A hidden section has no public detail page at all — the route turns this null
+  // into a 404, so a direct URL exposes nothing.
+  if (!visibility.publicVisible) return null;
+  const rentalEnabled = visibility.rentalEnabled;
   // Rental off ⇒ a rental-only listing has no public page (404). A `both` listing
   // stays reachable as a sale listing, with its rental price projected away.
   const rentalClause = rentalEnabled
@@ -316,10 +351,12 @@ export function getVehicleById(id: string): Vehicle | null {
 
 export function listFeaturedVehicles(
   limit = 3,
-  scope: { rentalEnabled?: boolean } = {},
+  scope: { rentalEnabled?: boolean; publicVisible?: boolean } = {},
 ): VehicleSummary[] {
   const db = getDb();
-  const rentalEnabled = scope.rentalEnabled ?? isVehicleRentalEnabled();
+  const visibility = resolveScope(scope);
+  if (!visibility.publicVisible) return [];
+  const rentalEnabled = visibility.rentalEnabled;
   const rows = db
     .prepare(
       `SELECT v.*, c.id AS c_id, c.slug AS c_slug, c.name_fr AS c_name_fr, c.name_ar AS c_name_ar
@@ -336,10 +373,12 @@ export function listFeaturedVehicles(
 export function listSimilarVehicles(
   vehicle: Vehicle,
   limit = 3,
-  scope: { rentalEnabled?: boolean } = {},
+  scope: { rentalEnabled?: boolean; publicVisible?: boolean } = {},
 ): VehicleSummary[] {
   const db = getDb();
-  const rentalEnabled = scope.rentalEnabled ?? isVehicleRentalEnabled();
+  const visibility = resolveScope(scope);
+  if (!visibility.publicVisible) return [];
+  const rentalEnabled = visibility.rentalEnabled;
   const rows = db
     .prepare(
       `SELECT v.*, c.id AS c_id, c.slug AS c_slug, c.name_fr AS c_name_fr, c.name_ar AS c_name_ar
@@ -370,6 +409,9 @@ export function listSimilarVehicles(
  * second settings lookup, and so tests can drive both states explicitly.
  */
 export function countPublicSaleVehicles(rentalEnabled: boolean): number {
+  // The count backs navigation, the hero CTA and the sitemap — all public. A
+  // hidden section has zero public sale inventory by definition.
+  if (!isVehiclePublicVisible()) return 0;
   const clause = withProjection(rentalEnabled);
   const row = getDb()
     .prepare(

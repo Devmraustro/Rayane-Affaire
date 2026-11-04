@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils';
  */
 export function SiteHeader({
   transparentOnTop = false,
+  vehiclePublicVisible = true,
   rentalEnabled = true,
   hasSaleInventory = true,
 }: {
@@ -29,14 +30,19 @@ export function SiteHeader({
    * When false, the menu offers vehicle *sales* instead of rental — and drops
    * the entry entirely if there is no sale inventory to show.
    */
+  /**
+   * Master switch for the whole vehicle section. When false the entry is removed
+   * outright, whatever `rentalEnabled` says.
+   */
+  vehiclePublicVisible?: boolean;
   rentalEnabled?: boolean;
   /** Whether the sale catalogue has published real listings. */
   hasSaleInventory?: boolean;
 }) {
   const { t, locale } = useI18n();
   const navItems = React.useMemo(
-    () => primaryNavFor({ rentalEnabled, hasSaleInventory }),
-    [rentalEnabled, hasSaleInventory],
+    () => primaryNavFor({ vehiclePublicVisible, rentalEnabled, hasSaleInventory }),
+    [vehiclePublicVisible, rentalEnabled, hasSaleInventory],
   );
   const pathname = usePathname();
   const [open, setOpen] = React.useState(false);
@@ -84,7 +90,11 @@ export function SiteHeader({
             aria-label={locale === 'ar' ? 'ريان أعمال — الصفحة الرئيسية' : 'RAYANE AFFAIRE — accueil'}
             className="shrink-0"
           >
-            <Logo variant={onDark ? 'light' : 'dark'} locale={locale} />
+            <Logo
+              variant={onDark ? 'light' : 'dark'}
+              locale={locale}
+              vehiclePublicVisible={vehiclePublicVisible}
+            />
           </Link>
 
           <nav aria-label={t.nav.menu} className="hidden items-center gap-1 lg:flex">

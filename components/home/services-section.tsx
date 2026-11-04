@@ -79,11 +79,22 @@ const COPY = {
   },
 } as const;
 
-export function ServicesSection({ rentalEnabled = true }: { rentalEnabled?: boolean }) {
+export function ServicesSection({
+  vehiclePublicVisible = true,
+  rentalEnabled = true,
+}: {
+  vehiclePublicVisible?: boolean;
+  rentalEnabled?: boolean;
+}) {
   const { t, locale, dir } = useI18n();
   const copy = COPY[locale];
   const Arrow = dir === 'rtl' ? ArrowLeft : ArrowRight;
-  const services = rentalEnabled ? SERVICES : SERVICES.filter((item) => item.key !== 'vehicles');
+  // The vehicle card is a rental service card: gone when the section is hidden,
+  // and also when the agency sells but does not rent.
+  const services =
+    vehiclePublicVisible && rentalEnabled
+      ? SERVICES
+      : SERVICES.filter((item) => item.key !== 'vehicles');
 
   return (
     <section id="services" className="bg-white py-16 sm:py-20 lg:py-24">

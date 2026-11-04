@@ -16,7 +16,10 @@ interface Check {
 const checks: Check[] = [
   { path: '/', expect: [200], label: 'Accueil' },
   { path: '/properties', expect: [200], label: 'Biens' },
-  { path: '/vehicles', expect: [200], label: 'Véhicules' },
+  // Either the whole section is public (200) or hidden (404). Which one is a
+  // client decision; the state-consistency block below checks that the rest of
+  // the surface agrees with it.
+  { path: '/vehicles', expect: [200, 404], label: 'Véhicules' },
   { path: '/map', expect: [200], label: 'Carte' },
   { path: '/services', expect: [200], label: 'Services' },
   { path: '/about', expect: [200], label: 'À propos' },
@@ -49,72 +52,79 @@ async function main(): Promise<void> {
     }
   }
 
-  // Vehicle discoverability.
+  // Vehicle section coherence.
   //
-  // A previous version of this check only asserted that the menu and the sitemap
-  // *agreed* with each other — which passes happily when both hide the catalogue,
-  // exactly the bug that buried sale inventory. It now checks the thing that
-  // matters: the sale catalogue is reachable and advertised, and rental-only
-  // detail URLs are not.
+  // Two states are legitimate and this check accepts both, but only if the whole
+  // surface agrees: a hidden section must be invisible *everywhere* (menu,
+  // sitemap, cards, metadata), and a public one must be reachable everywhere. The
+  // reported defect was a catalogue nobody could find, which is why disagreement
+  // — in either direction — is a failure rather than a warning.
   try {
     const home = await (await fetch(`${base}/`)).text();
     const sitemap = await (await fetch(`${base}/sitemap.xml`)).text();
     const vehiclesResponse = await fetch(`${base}/vehicles`, { redirect: 'manual' });
-    const catalogueOk = vehiclesResponse.status === 200;
+    const status = vehiclesResponse.status;
     const navHasVehicles = /href="\/vehicles"/.test(home);
     const sitemapHasVehicles = sitemap.includes('/vehicles');
+    const homeMentionsVehicles = /href="\/vehicles"|v[ée]hicule|voiture|سيار/i.test(home);
 
-    // Count the sale vehicles the catalogue actually serves, by reading the
-    // detail links out of the HTML. This is what "discoverable" means.
-    const vehiclesHtml = catalogueOk ? await vehiclesResponse.text() : '';
-    const detailLinks = [...vehiclesHtml.matchAll(/href="(\/vehicles\/[^"?#]+)"/g)].map(
-      (match) => match[1],
-    );
-    const uniqueDetails = [...new Set(detailLinks)];
-
-    // Demonstration records are shown (clearly labelled) but deliberately kept out
-    // of the sitemap so they are never indexed as real inventory. The cards are
-    // split on <article>, which is what VehicleCard renders, so a card can be
-    // classified by the badge it carries rather than by guessing from its slug.
-    const demoMarker = /d[ée]monstration|تجريبي/i;
-    const realDetails = vehiclesHtml
-      .split('<article')
-      .slice(1)
-      .flatMap((card) => {
-        if (demoMarker.test(card)) return [];
-        return [...card.matchAll(/href="(\/vehicles\/[^"?#]+)"/g)].map((m) => m[1]);
+    if (status === 404) {
+      // Hidden: nothing may advertise the section, and a detail URL must 404 too.
+      const detail = await fetch(`${base}/vehicles/verification-slug-quelconque`, {
+        redirect: 'manual',
       });
+      const ok =
+        !navHasVehicles && !sitemapHasVehicles && !homeMentionsVehicles && detail.status === 404;
+      if (!ok) failures += 1;
+      const problems = [
+        navHasVehicles ? 'lien dans le menu' : '',
+        sitemapHasVehicles ? 'URL dans le sitemap' : '',
+        homeMentionsVehicles ? 'mention sur l’accueil' : '',
+        detail.status !== 404 ? `fiche ${detail.status}` : '',
+      ].filter(Boolean);
+      console.log(
+        `${ok ? '✔' : '✘'} ${'Section véhicules'.padEnd(18)} masquée catalogue=${status} menu=${navHasVehicles ? 'visible' : 'masqué'} sitemap=${sitemapHasVehicles ? 'inclus' : 'exclu'}${problems.length ? ` — ${problems.join(', ')}` : ''}`,
+      );
+    } else if (status === 200) {
+      const vehiclesHtml = await vehiclesResponse.text();
+      const detailLinks = [...vehiclesHtml.matchAll(/href="(\/vehicles\/[^"?#]+)"/g)].map(
+        (match) => match[1],
+      );
+      const uniqueDetails = [...new Set(detailLinks)];
 
-    // Every advertised detail URL must resolve with 200 — a sitemap entry that
-    // 404s is worse than no entry.
-    let brokenDetails = 0;
-    for (const href of uniqueDetails.slice(0, 6)) {
-      const response = await fetch(`${base}${href}`, { redirect: 'manual' });
-      if (response.status !== 200) brokenDetails += 1;
+      // Demonstration records are shown (clearly labelled) but kept out of the
+      // sitemap so they are never indexed as real inventory.
+      const demoMarker = /d[ée]monstration|تجريبي/i;
+      const realDetails = vehiclesHtml
+        .split('<article')
+        .slice(1)
+        .flatMap((card) => {
+          if (demoMarker.test(card)) return [];
+          return [...card.matchAll(/href="(\/vehicles\/[^"?#]+)"/g)].map((m) => m[1]);
+        });
+
+      let brokenDetails = 0;
+      for (const href of uniqueDetails.slice(0, 6)) {
+        const response = await fetch(`${base}${href}`, { redirect: 'manual' });
+        if (response.status !== 200) brokenDetails += 1;
+      }
+
+      const discoverable = uniqueDetails.length === 0 || (navHasVehicles && sitemapHasVehicles);
+      const missingFromSitemap = [...new Set(realDetails)].filter((href) => !sitemap.includes(href));
+      const ok = discoverable && brokenDetails === 0 && missingFromSitemap.length === 0;
+      if (!ok) failures += 1;
+      const problems = [
+        !discoverable ? 'catalogue annoncé de façon incomplète' : '',
+        brokenDetails ? `${brokenDetails} fiche(s) cassée(s)` : '',
+        missingFromSitemap.length ? `${missingFromSitemap.length} fiche(s) absente(s) du sitemap` : '',
+      ].filter(Boolean);
+      console.log(
+        `${ok ? '✔' : '✘'} ${'Section véhicules'.padEnd(18)} publique catalogue=200 menu=${navHasVehicles ? 'visible' : 'masqué'} sitemap=${sitemapHasVehicles ? 'inclus' : 'exclu'} fiches=${uniqueDetails.length}${problems.length ? ` — ${problems.join(', ')}` : ''}`,
+      );
+    } else {
+      failures += 1;
+      console.log(`✘ ${'Section véhicules'.padEnd(18)} catalogue=${status} (attendu 200 ou 404)`);
     }
-
-    // The reported defect: the catalogue was reachable but invisible — no menu
-    // entry and no sitemap URLs. Agreement between a hidden menu and a hidden
-    // sitemap is therefore NOT sufficient. If the catalogue serves listings, the
-    // menu and the sitemap must both advertise it.
-    const consistent = navHasVehicles === sitemapHasVehicles && catalogueOk;
-    const discoverable = uniqueDetails.length === 0 || (navHasVehicles && sitemapHasVehicles);
-
-    // A real listing the catalogue shows must be advertised to crawlers too.
-    const missingFromSitemap = [...new Set(realDetails)].filter((href) => !sitemap.includes(href));
-
-    const ok = consistent && discoverable && brokenDetails === 0 && missingFromSitemap.length === 0;
-    if (!ok) failures += 1;
-    const problems = [
-      !catalogueOk ? `catalogue ${vehiclesResponse.status}` : '',
-      !consistent && catalogueOk ? 'menu/sitemap désaccordés' : '',
-      !discoverable ? 'catalogue non annoncé' : '',
-      brokenDetails ? `${brokenDetails} fiche(s) cassée(s)` : '',
-      missingFromSitemap.length ? `${missingFromSitemap.length} fiche(s) absente(s) du sitemap` : '',
-    ].filter(Boolean);
-    console.log(
-      `${ok ? '✔' : '✘'} ${'Location véhicules'.padEnd(18)} menu=${navHasVehicles ? 'visible' : 'masqué'} sitemap=${sitemapHasVehicles ? 'inclus' : 'exclu'} catalogue=${vehiclesResponse.status} fiches=${uniqueDetails.length}${problems.length ? ` — ${problems.join(', ')}` : ''}`,
-    );
   } catch {
     failures += 1;
   }

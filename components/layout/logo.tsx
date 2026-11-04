@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils';
 import { BRAND } from '@/lib/brand';
+import { dictionaries } from '@/lib/i18n/dictionaries';
 
 /**
  * RAYANE AFFAIRE wordmark.
@@ -12,13 +13,20 @@ export function Logo({
   showTagline = false,
   className,
   locale = 'fr',
+  vehiclePublicVisible = true,
 }: {
   variant?: 'dark' | 'light';
   showTagline?: boolean;
   className?: string;
   locale?: 'fr' | 'ar';
+  /**
+   * The tagline is a public claim ("Immobilier & Véhicules"), so it follows the
+   * same policy as the rest of the site rather than being hard-coded.
+   */
+  vehiclePublicVisible?: boolean;
 }) {
   const onDark = variant === 'light';
+  const t = dictionaries[locale];
   return (
     <span className={cn('inline-flex items-center gap-2.5', className)}>
       <span
@@ -52,7 +60,7 @@ export function Logo({
               onDark ? 'text-white/60' : 'text-gold-700',
             )}
           >
-            {locale === 'ar' ? 'عقارات وسيارات' : 'Immobilier & Véhicules'}
+            {vehiclePublicVisible ? t.home.logoTagline : t.home.logoTaglineRealEstate}
           </span>
         )}
       </span>

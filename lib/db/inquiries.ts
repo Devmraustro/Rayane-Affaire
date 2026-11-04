@@ -1,5 +1,6 @@
 import '@/lib/server/guard';
 import { getDb } from '@/db/client';
+import { isVehiclePublicVisible } from './settings';
 import { randomUUID } from 'node:crypto';
 import type { Inquiry, InquiryStatus, InquiryType, Locale, ContactChannel } from '@/types';
 import type { InquiryPayload } from '@/lib/validation';
@@ -75,19 +76,30 @@ export function createInquiry(
       .get(payload.propertyId) as { id: string } | undefined;
     propertyId = row?.id ?? null;
   }
+  // Public endpoint: a vehicle may only be referenced while the section is
+  // public. Without this guard, posting a vehicle id and observing whether the
+  // stored row carries it would let anyone enumerate hidden inventory, and the
+  // back-office would accumulate enquiries about listings nobody can see. The
+  // id is dropped silently, exactly as an unknown id is — no oracle either way.
   let vehicleId: string | null = null;
-  if (payload.vehicleId) {
+  if (payload.vehicleId && isVehiclePublicVisible()) {
     const row = db
       .prepare(`SELECT id FROM vehicles WHERE id = ? AND status = 'published'`)
       .get(payload.vehicleId) as { id: string } | undefined;
     vehicleId = row?.id ?? null;
   }
 
+  // A vehicle-linked submission typed as 'vehicle' or 'reservation' degrades to
+  // 'general' when the reference was dropped: the public site does not accept
+  // vehicle enquiries while the section is hidden.
+  const requestedType: InquiryType =
+    payload.type === 'vehicle' || payload.type === 'reservation' ? 'general' : payload.type;
+
   const type: InquiryType = propertyId
     ? 'property'
     : vehicleId
       ? 'vehicle'
-      : payload.type;
+      : requestedType;
 
   db.prepare(
     `INSERT INTO inquiries (

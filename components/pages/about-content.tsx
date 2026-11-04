@@ -24,10 +24,12 @@ const VALUES = {
 
 export function AboutContent({
   communes,
+  vehiclePublicVisible = true,
   rentalEnabled = true,
 }: {
   communes: Commune[];
-  /** Rental is part of the agency's story, so the copy follows the setting. */
+  /** Master switch: when false, no copy on this page mentions vehicles. */
+  vehiclePublicVisible?: boolean;
   rentalEnabled?: boolean;
 }) {
   const { t, locale, pick } = useI18n();
@@ -40,21 +42,29 @@ export function AboutContent({
           <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-14">
             <div>
               <p className="eyebrow">{t.about.title}</p>
-              <h1 className="mt-2.5 text-3xl sm:text-4xl">{B.positioning[locale]}</h1>
+              <h1 className="mt-2.5 text-3xl sm:text-4xl">
+                {(vehiclePublicVisible
+                  ? B.positioning
+                  : B.positioningRealEstate)[locale]}
+              </h1>
               <p className="mt-4 text-[0.9375rem] leading-relaxed text-ink-500">
                 {locale === 'ar'
                   ? 'ريان أعمال وكالة مستقلة تأسست سنة ' +
                     B.establishedYear +
-                    ' وتعمل في ولاية بجاية. نجمع بين العقارات ' +
-                    (rentalEnabled ? 'وكراء السيارات' : 'وبيع السيارات') +
-                    ' لأن العميل نفسه غالباً يحتاج الاثنين في نفس الفترة.'
+                    ' وتعمل في ولاية بجاية.' +
+                    (vehiclePublicVisible
+                      ? ' نجمع بين العقارات ' +
+                        (rentalEnabled ? 'وكراء السيارات' : 'وبيع السيارات') +
+                        ' لأن العميل نفسه غالباً يحتاج الاثنين في نفس الفترة.'
+                      : ' نواكب المالكين والمستأجرين والمشترين في كل مراحل مشروعهم العقاري.')
                   : 'RAYANE AFFAIRE est une agence indépendante fondée en ' +
                     B.establishedYear +
-                    ', active dans la wilaya de Béjaïa. Nous réunissons l’immobilier et ' +
-                    (rentalEnabled
-                      ? 'la location de véhicules'
-                      : 'la vente de véhicules') +
-                    ' parce que le même client a souvent besoin des deux au même moment.'}
+                    ', active dans la wilaya de Béjaïa.' +
+                    (vehiclePublicVisible
+                      ? ' Nous réunissons l’immobilier et ' +
+                        (rentalEnabled ? 'la location de véhicules' : 'la vente de véhicules') +
+                        ' parce que le même client a souvent besoin des deux au même moment.'
+                      : ' Nous accompagnons propriétaires, locataires et acquéreurs à chaque étape de leur projet immobilier.')}
               </p>
               <p className="mt-3 text-[0.9375rem] leading-relaxed text-ink-500">
                 {locale === 'ar'

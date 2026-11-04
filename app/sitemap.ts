@@ -4,7 +4,8 @@ import { listProperties } from '@/lib/db/properties';
 import { countPublicSaleVehicles, listVehicles } from '@/lib/db/vehicles';
 import { defaultPropertyFilters } from '@/lib/db/properties';
 import { defaultVehicleFilters } from '@/lib/db/vehicles';
-import { isVehicleRentalEnabled } from '@/lib/db/settings';
+import { getVehicleVisibility } from '@/lib/db/settings';
+import { HIDDEN_VEHICLES } from '@/lib/settings';
 
 /**
  * Sitemap built from the live database — only published, real listings are
@@ -17,19 +18,21 @@ import { isVehicleRentalEnabled } from '@/lib/db/settings';
  */
 export const dynamic = 'force-dynamic';
 export default function sitemap(): MetadataRoute.Sitemap {
-  // The catalogue is advertised whenever it has something to show. With rental
-  // off it is a *sale* catalogue: `/vehicles` and the sale listings stay in the
-  // sitemap (hiding sale stock would defeat the purpose of the setting), while
-  // rental-only listings are excluded because they answer 404.
-  const rentalEnabled = isVehicleRentalEnabled();
+  // The catalogue is advertised only while the section is public. When it is
+  // hidden, advertising `/vehicles` would send crawlers to a 404 — and would leak
+  // the existence of a section the client asked to hide.
+  let visibility = HIDDEN_VEHICLES;
   let saleInventory = 0;
   try {
-    saleInventory = countPublicSaleVehicles(rentalEnabled);
+    visibility = getVehicleVisibility();
+    if (visibility.publicVisible) saleInventory = countPublicSaleVehicles(visibility.rentalEnabled);
   } catch {
-    // A missing/unmigrated database must not break the sitemap endpoint.
-    saleInventory = 0;
+    // A missing/unmigrated database must not break the sitemap endpoint. The
+    // fallback is "hidden", which can only omit URLs, never invent them.
+    visibility = HIDDEN_VEHICLES;
   }
-  const catalogueReachable = rentalEnabled || saleInventory > 0;
+  const rentalEnabled = visibility.rentalEnabled;
+  const catalogueReachable = visibility.publicVisible && (rentalEnabled || saleInventory > 0);
 
   const paths = ['', '/properties', '/map', '/services', '/about', '/contact', '/credits'];
   if (catalogueReachable) paths.splice(2, 0, '/vehicles');

@@ -5,7 +5,8 @@ import { ServicesContent } from '@/components/pages/services-content';
 import { dictionaries } from '@/lib/i18n/dictionaries';
 import { resolveLocale } from '@/lib/i18n/locale';
 import { LOCALE_COOKIE } from '@/lib/config';
-import { isVehicleRentalEnabled } from '@/lib/db/settings';
+import { getVehicleVisibility } from '@/lib/db/settings';
+import { HIDDEN_VEHICLES } from '@/lib/settings';
 
 export async function generateMetadata(): Promise<Metadata> {
   const jar = await cookies();
@@ -15,9 +16,21 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default function ServicesPage() {
+  // The services page advertises a vehicle-rental service card, so it is a public
+  // vehicle surface like any other and follows the same policy.
+  const visibility = (() => {
+    try {
+      return getVehicleVisibility();
+    } catch {
+      return HIDDEN_VEHICLES;
+    }
+  })();
   return (
     <PublicShell>
-      <ServicesContent rentalEnabled={isVehicleRentalEnabled()} />
+      <ServicesContent
+        vehiclePublicVisible={visibility.publicVisible}
+        rentalEnabled={visibility.rentalEnabled}
+      />
     </PublicShell>
   );
 }
