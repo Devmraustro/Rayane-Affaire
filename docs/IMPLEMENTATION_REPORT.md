@@ -3,8 +3,8 @@
 Projet : **RAYANE AFFAIRE** — plateforme immobilière et automobile, Béjaïa.
 Dépôt : `https://github.com/Devmraustro/Rayane-Affaire`
 Branche de travail : `arena/c6e4a623-rayane-affaire`
-Commit de référence : `be9c3af` (+ commits de documentation ultérieurs)
-Date : 3 novembre 2026
+Base d'origine : `8f8a982`; changements initiaux suivis dans la PR #1.
+Dernière mise à jour du rapport : 4 novembre 2026
 
 ---
 
@@ -12,9 +12,10 @@ Date : 3 novembre 2026
 
 Le dépôt contenait un unique commit (`8f8a982 Initial commit`) : la configuration
 Next.js/TypeScript/Tailwind et les dépendances, **sans aucune page ni logique
-métier**. Aucun code existant n'a été détruit : les versions des frameworks, la
-configuration de build et les dépendances installées ont été conservées telles
-quelles.
+métier**. Aucun code applicatif existant n'a été détruit. Le framework et la
+configuration de build sont restés sur Next.js 15 ; Zod a été mis à niveau vers
+4.6.7 et Vitest vers 5.1.0 pour traiter les avis de sécurité et garder la suite
+verte.
 
 Le projet de référence (`GW-IMMOBILIER`) a été lu pour **comprendre le
 périmètre fonctionnel** (modules du back-office, modèle de données, ton visuel).
@@ -35,9 +36,9 @@ l'interface, avec une identité propre.
 | Framework | Next.js 15.5 (App Router), React 19, TypeScript 5.7 strict |
 | Style | Tailwind 3.4 + jetons RAYANE (or `#D9A622`, encre `#1B1B1D`, sable 50–300) |
 | Base | SQLite via `node:sqlite` (Node ≥ 22.5, aucune compilation native) |
-| Validation | Zod (schémas partagés client/serveur) |
+| Validation | Zod 4 (schémas partagés client/serveur) |
 | Carte | Leaflet + react-leaflet + markercluster, tuiles OpenStreetMap |
-| Tests | Vitest (8 fichiers, 175 tests) |
+| Tests | Vitest 5.1.0 (9 fichiers, 215 tests) |
 | Volume produit | 155 fichiers TypeScript/TSX : **27 routes de page** et **11 routes API** au build, 52 composants, 28 modules `lib/` |
 
 ### 2.2 Base de données (12 tables, 21 index)
@@ -61,34 +62,37 @@ Détail complet : `docs/DATABASE_SCHEMA.md`.
 
 | Page | Contenu réel |
 | --- | --- |
-| `/` | Héro éditorial, panneau de recherche (commune, catégorie, transaction, budget), chiffres issus d'agrégats SQL, biens et véhicules en vedette, services, présentation, contact |
+| `/` | Héro éditorial, panneau de recherche (commune, catégorie, transaction, budget), chiffres issus d'agrégats SQL, biens en vedette ; la surface véhicules est conditionnelle à la visibilité publique, services, présentation et contact |
 | `/properties` | Catalogue filtrable + recherche FR/AR + tri + pagination, états vides explicites |
 | `/properties/[slug]` | Galerie, tableau de caractéristiques, carte à précision déclarée, formulaire relié à l'annonce, `JSON-LD` si annonce réelle, `noindex` si démonstration |
-| `/vehicles`, `/vehicles/[slug]` | Catalogue et fiche véhicule |
+| `/vehicles`, `/vehicles/[slug]` | Catalogue et fiche véhicule lorsque `vehicle_public_visible` est vrai ; sinon les routes renvoient 404 |
 | `/map` | Marqueurs uniquement pour les positions vérifiées, légende de précision, compteur d'annonces sans position |
 | `/services`, `/about`, `/contact` | Pages éditoriales ; coordonnées lues dans l'environnement, bloc masqué + mention « à configurer » si absent |
 | `/robots.txt`, `/sitemap.xml` | Générés dynamiquement, `/admin` et `/api` exclus |
 
-### 2.3 bis Réglage de visibilité de la location de véhicules
+### 2.3 bis Visibilité publique des véhicules
 
-Contrôle réel (pas décoratif) permettant à l'agence d'indiquer si elle propose ou
-non la location de véhicules. Persisté dans `settings`, exposé par un interrupteur
-bilingue dans `/admin/settings`, appliqué **côté serveur**.
+Deux réglages persistés dans `settings` et présentés dans `/admin/settings`.
 
-La règle est asymétrique et c'est volontaire : **le réglage retire la location,
-jamais la vente.** Une annonce `rent` disparaît (`404`, hors menu et hors
-sitemap) ; une annonce `sale` reste exactement identique ; une annonce `both`
-reste publique mais présentée comme une vente, sans prix de location et **sans
-que la ligne en base soit modifiée** (projection au rendu, cf.
-`projectVehicleForPublic`). Quand la location est désactivée, le menu propose
-« Véhicules à vendre », le catalogue reste joignable, la une et les statistiques
-suivent l'inventaire de vente, et le sitemap conserve `/vehicles` avec les fiches
-de vente. Disparaissent uniquement les surfaces locatives : CTA, carte de
-service, filtre `rent`/`both`, action de réservation, mentions de location dans
-les métadonnées et les textes de présentation.
+1. `vehicle_public_visible` est l'interrupteur principal, défaut **false**. Tant
+   qu'il est désactivé, le site ne sert ni catalogue ni fiches, ne compte aucun
+   véhicule, ne les mentionne pas dans la navigation, le contenu public ou les
+   métadonnées, et n'en publie aucune URL dans le sitemap. Les lectures publiques
+   renvoient un résultat vide/404, y compris en cas d'échec de lecture de la
+   configuration (fail-closed). L'API de demandes ne permet pas de contourner la
+   politique en attachant un identifiant véhicule.
+2. `vehicle_rental_enabled` n'affine la politique que lorsque le catalogue est
+   rendu public. Il retire la location, jamais la vente : `rent` devient 404,
+   `sale` reste identique, et `both` reste publique comme une vente sans prix de
+   location ni mutation de la ligne en base.
 
-Détail technique : `docs/ARCHITECTURE.md` §9 ; API :
-`docs/API_DOCUMENTATION.md`.
+Le masquage est une projection à la lecture. Il ne supprime et ne réécrit aucune
+annonce. Le back-office garde les opérations complètes ; un simple basculement
+restaure la visibilité sans redémarrage. Les deux états ont été vérifiés sur un
+build de production : smoke 17/17, chaque fois, sur une base temporaire.
+
+Détail technique : `docs/ARCHITECTURE.md` §9 ; politique et tests :
+`tests/vehicle-rental-setting.test.ts`.
 
 ### 2.4 Back-office
 
@@ -102,7 +106,7 @@ réelle** :
 | Biens (liste, création, édition) | ✅ | Filtres statut/recherche/démo/géo, actions de statut en ligne |
 | Véhicules (liste, création, édition) | ✅ | Idem |
 | Médias (upload, suppression) | ✅ | Magic bytes, quota, crédit + licence + alt bilingue exigés côté serveur et côté interface |
-| Paramètres — location de véhicules | ✅ | Interrupteur bilingue persisté, rôle manager, CSRF, audit avec valeur avant/après |
+| Paramètres — visibilité véhicules | ✅ | Interrupteur principal masqué par défaut + raffinement de location ; rôle manager, CSRF, audit avant/après |
 | Demandes de contact | ✅ | File de travail maître/détail, statuts, notes internes |
 | Clients | ✅ | Alimenté par les réservations réelles |
 | Réservations | ✅ | Montants, acomptes, statuts |
@@ -118,7 +122,11 @@ Voir `docs/SECURITY_AUDIT.md`. En résumé : scrypt N=2¹⁵, jetons de session
 stockés hachés avec un secret serveur, CSRF à double soumission, expiration 8 h,
 révocation serveur, limitation de débit persistée, validation Zod systématique,
 requêtes 100 % préparées, CSP à nonce, `nosniff`, vérification d'origine,
-téléversements validés par magic bytes, aucun secret dans le dépôt.
+téléversements validés par magic bytes et débarrassés des métadonnées avant
+écriture (AVIF avec EXIF/XMP refusé), aucun secret dans le dépôt. Un audit de
+dépendances bloque les vulnérabilités high/critical hors exception motivée et
+expirante ; le postcss imbriqué dans Next 15 reste une exception jusqu'au
+31 mars 2027, pas un correctif.
 
 ### 2.6 Internationalisation
 
@@ -151,13 +159,14 @@ Nominatim (données ODbL, attribution affichée sur la carte) :
 | Kherrata | 4112854 | 36.4936262 | 5.2771041 |
 | Darguina | 4112864 | 36.5643070 | 5.3063118 |
 
-La wilaya compte **53 communes** : les 11 présentes couvrent le cœur de la zone
-d'activité présumée. L'extension du référentiel est une tâche de saisie
+La wilaya compte **53 communes** : 11 sont actuellement référencées, donc 42
+restent à ajouter/valider. L'extension du référentiel est une tâche de saisie
 (bloc B du handoff) — aucune commune supplémentaire n'a été inventée.
 
-Aucune coordonnée d'annonce n'a été créée : les fiches réelles attendent les
-informations du client, et chaque annonce doit déclarer explicitement son niveau
-de précision.
+Aucune coordonnée **réelle** d'annonce n'a été créée : les fiches réelles
+attendent les informations du client. Le seed facultatif contient des positions
+illustratives, toutes signalées avec leur précision et sans prétendre localiser
+un bien réel ; chaque vraie annonce doit déclarer son niveau de précision.
 
 ### 3.2 Annonces, clients, demandes
 
@@ -175,10 +184,13 @@ permettre la vérification visuelle :
 
 ### 3.3 Photographies
 
-Aucune photo de bien n'est fournie. L'interface d'upload impose un texte
+Aucune photo réelle de bien n'est fournie. L'interface d'upload impose un texte
 alternatif bilingue, un crédit et une licence : le client fournira ses propres
-photos, ou des photos sous licence avec attribution. Les seuls visuels présents
-sont les illustrations de marque (`public/images/fallback/*.svg`), générées par
+photos, ou des photos sous licence avec attribution. Avant l'écriture disque, les
+métadonnées EXIF/GPS, XMP, IPTC, commentaires JPEG et chunks textuels PNG sont
+retirés ; AVIF EXIF/XMP est refusé. L'orientation EXIF n'est pas appliquée aux
+pixels : réorienter la photo avant l'envoi. Les seuls visuels présents sont les
+illustrations de marque (`public/images/fallback/*.svg`), générées par
 `scripts/make-placeholders.ts`.
 
 ### 3.4 Coordonnées de contact
@@ -232,18 +244,24 @@ Problèmes réels rencontrés et corrigés (utiles au prochain intervenant) :
 
 ## 5. Preuves d'exécution
 
-Toutes les commandes ci-dessous ont été exécutées sur ce dépôt, à ce commit.
+Dernière re-vérification locale : 4 novembre 2026 (Node 22.22.3, Next 15.5.28,
+Vitest 5.1.0). Résultats détaillés : `docs/TESTING_REPORT.md`.
 
 | Commande | Résultat observé |
 | --- | --- |
-| `npx tsc --noEmit` | aucune sortie ⇒ 0 erreur |
-| `npm run lint` | `✔ No ESLint warnings or errors` |
-| `npm test` | `Test Files 8 passed (8)` / `Tests 175 passed (175)` |
-| `npm run build` | `✓ Compiled successfully`, `✓ Generating static pages (19/19)`, 20 pages statiques, 38 entrées de route + middleware, JS partagé 103 kB |
-| `npm run smoke -- http://localhost:3000` | `All checks passed.` — 17/17, sur un serveur de production au repos (15 contrôles de route + 2 assertions HTML) |
-| Parcours admin via `curl` | connexion 200, `/admin` 307 sans session, 9 pages admin 200 avec session, création `RA-P-0001`, `422 MEDIA_REQUIRED` sans photo, upload 200, publication 200, fiche publique 200 |
+| `npm ci` | installation depuis le lockfile terminée |
+| `npm run typecheck` | 0 erreur |
+| `npm run lint` | 0 avertissement / erreur ESLint ; Next affiche un avis de dépréciation pour `next lint` |
+| `npm test` | **9 fichiers, 215/215** |
+| `npm run build` | compilation réussie ; 19/19 pages statiques générées ; routes dynamiques servies à la demande ; JS partagé 103 kB |
+| `npm run audit:gate` | 1 high (postcss) couvert par exception datée ; 0 high/critical non accepté |
+| `npm run smoke -- http://127.0.0.1:3100` | **17/17** en section cachée et **17/17** après activation publique, sans redémarrage |
+| GitHub Actions | workflow ajouté ; un résultat n'est revendiqué que si `gh run list` le confirme |
 
-Détail et sorties : `docs/TESTING_REPORT.md`.
+Un parcours de connexion et de CRUD admin par HTTP avait aussi été vérifié dans
+la passe précédente : `/admin` renvoie 307 sans session, les routes admin sont
+accessibles avec une session valide, la publication sans image est refusée et
+un upload attribué peut être publié. Les tests d'API couvrent ces règles.
 
 ---
 
@@ -261,6 +279,8 @@ Détail et sorties : `docs/TESTING_REPORT.md`.
 | Notifications (e-mail/WhatsApp) à la réception d'une demande | Non implémentées |
 | Tests de bout en bout navigateur (E2E) | Pas de navigateur disponible |
 | Audit d'intrusion externe | Hors périmètre |
+| Upgrade Next 16 / suppression définitive du postcss high | Migration majeure à planifier ; exception `.github/audit-exceptions.json` expire le 31 mars 2027 |
+| Vérification du workflow sur GitHub Actions | Le workflow est ajouté ; le résultat distant doit être vérifié séparément après push |
 
 La suite est organisée par nature de blocage dans `docs/OPENCODE_HANDOFF.md`.
 

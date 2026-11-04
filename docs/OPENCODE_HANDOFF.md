@@ -1,249 +1,288 @@
-# Handoff — travail restant
+# Handoff — remaining work
 
-Ce document ne liste **que ce qui reste à faire**. Tout ce qui est décrit comme
-livré ailleurs (`README.md`, `docs/IMPLEMENTATION_REPORT.md`,
-`docs/TESTING_REPORT.md`) est terminé et vérifié : ne pas le refaire.
+This document lists **only what is still open**. Anything described as delivered
+in `README.md`, `docs/IMPLEMENTATION_REPORT.md`, `docs/TESTING_REPORT.md` and
+`docs/FINAL_REPORT.md` is finished and verified — do not redo it.
 
-Les tâches sont classées selon **ce qui les débloque**. Une tâche ne peut pas
-passer dans une catégorie inférieure sans que le blocage soit levé.
+Every task carries what it needs, where it lives, and how its completion will be
+recognised. There is no "finish testing" style item: an item that cannot be
+checked has no place here.
 
-Dernière mise à jour : 3 novembre 2026.
+**Repository state at the time of writing**
 
----
+| Item | Value |
+| --- | --- |
+| Branch | `arena/c6e4a623-rayane-affaire` |
+| Base | `main` @ `8f8a982` |
+| Pull request | #1 — **open**, not merged, not deployed |
+| Database | No database is committed. Fresh migration: 11 communes, 0 properties, 0 vehicles, 0 admins. |
+| Vehicle policy | New installations default to **hidden** (`vehicle_public_visible = 'false'`). |
 
-## Bloc A — Faisable dès maintenant dans le dépôt
+Reproduce the quality gate and the two HTTP policy states as documented in
+`docs/TESTING_REPORT.md` §5. The smoke test uses a throwaway migrated database;
+never point it at data that must be kept.
 
-Aucune information externe requise. Peut être traité sans le client.
-
-### A1. Tests de bout en bout dans un navigateur (E2E)
-
-- Installer Playwright dans un environnement disposant d'un navigateur
-  (`npx playwright install chromium` échoue dans l'environnement de développement
-  actuel).
-- Couvrir : bascule FR→AR et direction RTL, parcours de contact public, connexion
-  admin, création d'annonce avec upload, publication, affichage sur la carte,
-  absence de débordement horizontal (mobile 360 px, tablette, bureau).
-- Aucun test E2E n'existe à ce jour ; ne pas prétendre le contraire.
-
-### A2. Durcissement média (partiellement fait)
-
-Déjà en place : contrôle d'existence de l'annonce avant insertion (404 sinon) —
-il s'agit bien d'une **vérification d'existence, pas d'un contrôle de propriété
-par utilisateur** (aucune notion de propriétaire n'existe dans le modèle) —,
-crédit/licence obligatoires côté serveur **et** côté interface, texte alternatif
-bilingue obligatoire, magie-bytes, quota, nommage UUID.
-
-Reste à faire :
-
-- Retirer les métadonnées EXIF des images importées (une photo de client peut
-  contenir les coordonnées GPS du domicile) et forcer la réorientation.
-- Réordonnancement des photos par glisser-déposer (l'ordre existe en base).
-
-### A3. Interface de gestion des utilisateurs
-
-Le modèle (`admin_users`, rôles `owner/manager/editor`) et la matrice
-d'autorisation sont en place, mais **il n'existe aucune page** pour créer,
-désactiver ou changer le rôle d'un compte. À construire dans
-`app/admin/users/` + `app/api/admin/users/*` :
-- liste des comptes (owner uniquement) ;
-- création (mot de passe généré affiché une fois, jamais envoyé par courriel) ;
-- désactivation (révoque immédiatement les sessions) ;
-- changement de rôle, avec interdiction de se retirer soi-même le rôle `owner`.
-
-### A4. Détails d'ergonomie du back-office
-
-- Réservation : aucune interface de création (le modèle et les lectures
-  existent, l'écriture n'est pas exposée).
-- Calendrier : vue mensuelle seulement ; ajouter une vue liste par semaine.
-- Médias : pas de réordonnancement par glisser-déposer (l'ordre est géré en base
-  mais l'interface ne l'expose pas).
-
-### A5. Couverture de tests à compléter
-
-Déjà couvert : le réglage de location de véhicules
-(`tests/vehicle-rental-setting.test.ts`, 35 tests — politique par `deal_type`,
-projection de `both` en vente, navigation, sitemap, statistiques, surfaces de
-location masquées) et l'endpoint `PATCH /api/admin/settings` (9 tests dans
-`tests/api.test.ts`), soit **175 tests au total**.
-
-- Tests de `lib/db/inquiries`, `reservations`, `customers` (création, mises à
-  jour, filtres de période).
-- Test de la route `DELETE /api/admin/media` (suppression du fichier).
-- Test des composants de formulaire (rendu et soumission) si un environnement
-  DOM est ajouté à Vitest.
-
-### A6. Accessibilité
-
-- Audit axe-core automatisé (à ajouter au pipeline une fois A1 en place).
-- Vérifier le piège de focus des modales Radix et l'ordre de tabulation en RTL.
-
-### A7. Nettoyage de configuration
-
-- `next.config.mjs` : `serverExternalPackages: []` est vide et inutile ;
-  supprimer ou documenter.
-- `NEXT_PUBLIC_HERO_IMAGE` est bien consommé par `components/home/hero.tsx`
-  (vérifié) ; vérifier seulement qu'il est documenté dans le guide de déploiement.
+Latest local result at this revision: typecheck 0 errors · lint clean · **215
+tests passing in 9 files** · build succeeds · smoke **17/17** in both hidden and
+public states. This is not a GitHub Actions run.
 
 ---
 
-## Bloc B — Nécessite des informations du client
+## Bloc A — Doable in the repository right now
 
-Sans ces éléments, aucune donnée métier crédible ne peut être publiée.
-**Ne jamais inventer de valeur de remplacement.**
+No external input required.
 
-### B1. Coordonnées professionnelles
+### A1. End-to-end tests in a real browser
 
-À obtenir et à placer dans les variables `NEXT_PUBLIC_*`
-(voir `docs/ENVIRONMENT_VARIABLES.md`) :
+- No E2E suite exists. `npx playwright install chromium` fails in the current
+  environment (no browser download), so this is **not** done and must not be
+  claimed.
+- Target coverage: FR→AR switch and RTL direction, public contact flow, admin
+  login, listing creation with photo upload, publication, map display, absence of
+  horizontal overflow at 360 px / tablet / desktop.
+- Files to add: `tests/e2e/*.spec.ts`, `playwright.config.ts`; add an `e2e` job to
+  `.github/workflows/ci.yml` once the browser can be installed on the runner.
 
-- numéro WhatsApp (format international sans `+`, ex. `213XXXXXXXXX`) ;
-- numéro de téléphone affiché ;
-- adresse e-mail de contact ;
-- adresse postale du bureau (facultative) ;
-- réseaux sociaux (facultatifs) ;
-- horaires d'ouverture réels (aujourd'hui génériques dans les dictionnaires :
-  `contact.hoursValue` — **à confirmer**, ce n'est pas une donnée inventée mais
-  une formulation par défaut).
+### A2. Photo orientation after metadata stripping
 
-### B2. Inventaire réel
+The uploader now strips **all** embedded metadata, including the EXIF
+orientation tag (`lib/server/image-sanitize.ts`). Consequence, stated plainly: a
+portrait photo taken with the phone rotated is stored with its raw pixel order,
+so browsers will not rotate it and it may display sideways.
 
-Pour chaque bien : titre FR et AR, catégorie, transaction, prix et unité,
-commune, quartier, surface, chambres, salles de bain, ameublement, équipements,
-disponibilité, **coordonnées GPS avec niveau de précision** (`exact`,
-`approximate` ou `commune` — `pending` si inconnues), photos.
+- Today's mitigation is procedural: re-orient before upload.
+- Proper fix: bake orientation into pixels at upload time. This needs a decoder
+  (`sharp` or `@napi-rs/canvas`) and therefore a deliberate dependency decision,
+  plus a migration path for already-stored files.
+- Acceptance: uploading a portrait phone photo yields a correctly oriented
+  stored image, and a test proves it.
 
-Pour chaque véhicule : marque, modèle, année, catégorie, carburant, boîte,
-places, tarif journalier et/ou prix de vente, commune, kilométrage, photos.
+### A3. Admin user management UI
 
-**Ne jamais saisir une coordonnée « au centre de la commune » pour faire
-apparaître un marqueur.** Si la position est inconnue, choisir `pending`.
+The model (`admin_users`, roles `owner`/`manager`/`editor`) and the authorisation
+matrix exist; **no page exists** to create, deactivate or re-role an account.
 
-### B3. Photographies
+- Build in `app/admin/users/` + `app/api/admin/users/*`:
+  - account list (owner only);
+  - creation (generated password shown once, never mailed);
+  - deactivation (must revoke sessions immediately);
+  - role change, forbidding an owner from removing their own `owner` role.
+- Acceptance: an owner creates an editor, the editor cannot reach settings, and
+  deactivation invalidates an active session (test in `tests/api.test.ts`).
 
-- Photos fournies par le client (droits à confirmer par écrit), **ou** photos sous
-  licence libre avec auteur et licence exacts.
-- Pour chaque photo : texte alternatif FR et AR, crédit, licence, éventuelle URL
-  de source.
+### A4. Back-office ergonomics
 
-### B4. Identité et contenus éditoriaux
+- Reservations: no creation UI (model and reads exist, writes are not exposed).
+- Calendar: month view only; add a week/list view.
+- Media: no drag-and-drop reordering (order is stored in the database, the UI
+  does not expose it).
 
-- Confirmer le nom exact, le logo et la charte (aujourd'hui : nom « RAYANE
-  AFFAIRE », palette or/sable/encre).
-- Valider les textes de présentation (`/about`), la liste des services et leurs
-  descriptions.
-- Confirmer l'année de création de l'agence et toute mention légale (RC, NIF)
-  destinée au pied de page.
-- Valider les horaires, les langues affichées et la politique de confidentialité.
+### A5. Test coverage gaps
 
-### B5. Périmètre géographique
+Covered today (215 tests, 9 files): the central vehicle visibility policy
+(`tests/vehicle-rental-setting.test.ts`, 52 tests), image metadata stripping
+(`tests/image-sanitize.test.ts`, 22 tests), upload sniffing and refusals
+(`tests/security.test.ts`), `PATCH /api/admin/settings` including its role and
+CSRF rules (`tests/api.test.ts`), database integrity and statistics scoping
+(`tests/database.test.ts`).
 
-- Confirmer que la zone couverte est bien Béjaïa et ses environs, et **quelles
-  communes** doivent figurer dans le référentiel (11 sur 53 sont présentes).
-- Fournir les centroïdes OSM des communes manquantes (même méthode que
-  `db/communes.ts` : relation OpenStreetMap, jamais une estimation).
+- Not covered: `lib/db/reservations`, `lib/db/customers`, `DELETE
+  /api/admin/media`, the commune reference data, and any component rendering (no
+  DOM environment in Vitest).
+- Acceptance: each named module gains at least one behavioural test that fails
+  when the behaviour is removed.
 
-### B6. Référence visuelle
+### A6. Accessibility
 
-- **Les quatre captures d'écran annoncées comme référence n'ont jamais été
-  transmises.** Les fournir si une parité visuelle précise avec le projet de
-  référence est attendue. En leur absence, l'interface suit une identité propre :
-  aucune conformité pixel à pixel ne peut être revendiquée.
+- Add an automated axe-core pass once A1 exists.
+- Manually verify the Radix modal focus trap and the tab order in RTL.
+- Acceptance: zero serious axe violations on `/`, `/properties`, `/contact`,
+  `/admin/login`, in both languages.
+
+### A7. Configuration cleanup
+
+- `next.config.mjs`: `serverExternalPackages: []` is empty and useless — remove or
+  justify.
+- Migrate `npm run lint` from `next lint` to the ESLint CLI before Next.js 16
+  removes the deprecated command. The present lint run is clean; this is a
+  toolchain warning, not a lint failure.
+- Resolve the non-blocking Vitest 5.1/Vite warning for `vitest.config.ts` before
+  a future major changes the native config loader default.
+- Confirm `NEXT_PUBLIC_HERO_IMAGE` is documented in `docs/DEPLOYMENT_GUIDE.md`
+  (it is consumed by `components/home/hero.tsx`).
+
+### A8. Next 16 major upgrade
+
+- The remaining high advisory (see `docs/SECURITY_AUDIT.md` §10) is only
+  removable by upgrading Next from 15 to 16, which currently ships
+  `postcss@8.4.31` internally. The earlier critical Vitest/tinypool advisories
+  were cleared by upgrading Vitest to 5.1.0.
+- The exception in `.github/audit-exceptions.json` **expires on 2027-03-31**;
+  after that date CI fails until this is done or the exception is re-reviewed.
+- Acceptance: `npm audit` across the complete dependency tree reports no
+  high/critical advisory, the exception file no longer lists `postcss`, and the
+  full gate passes.
 
 ---
 
-## Bloc C — Nécessite un accès à l'environnement de production
+## Bloc B — Needs information from the client
 
-### C1. Hébergement et domaine
+Without these, no credible business content can be published. **Never invent a
+substitute value.**
 
-- Choisir un hébergeur **à disque persistant** (voir `docs/DEPLOYMENT_GUIDE.md`
-  §1 : Vercel/Netlify ne conviennent pas sans migration PostgreSQL + stockage
-  objet).
-- Réserver le nom de domaine, configurer le DNS, obtenir le certificat TLS.
+### B1. Professional contact details
 
-### C2. Déploiement et secrets
+To obtain and place in the `NEXT_PUBLIC_*` variables (see
+`docs/ENVIRONMENT_VARIABLES.md`):
 
-- Générer un `SESSION_SECRET` de 48 octets **différent** de celui de
-  développement.
-- Renseigner `NEXT_PUBLIC_SITE_URL` avec l'URL HTTPS définitive **avant** le
-  build (ces variables sont figées à la compilation).
-- Créer le compte propriétaire en production avec un mot de passe fort.
-- Exécuter `npm run smoke -- https://<domaine>` et consigner le résultat.
+- WhatsApp number (international, no `+`, e.g. `213XXXXXXXXX`);
+- displayed phone number — **currently supplied only as a screenshot and not
+  verifiable from this repository; the digits must be confirmed in writing
+  before they are published.** Do not transcribe them from an image by guesswork;
+- contact e-mail address (none is published today, by design);
+- office postal address (optional — the address block is omitted when empty);
+- social profiles (optional; TikTok `@rayane_affaire` is the only one referenced);
+- real opening hours (`contact.hoursValue` in the dictionaries is a generic
+  default and needs confirmation).
 
-### C3. Sauvegardes et supervision
+### B2. Real inventory
 
-- Mettre en place la sauvegarde quotidienne (base + uploads) et **tester une
-  restauration** avant l'ouverture au public.
-- Brancher une supervision HTTP et une alerte sur l'espace disque.
-- Configurer la rotation des journaux.
+Per property: FR and AR title, category, transaction, price and unit, commune,
+district, surface, rooms, bathrooms, furnishing, features, availability, **GPS
+coordinates with a declared precision** (`exact`, `approximate` or `commune` —
+`pending` when unknown), photos.
 
-### C4. Envoi de notifications
+Per vehicle (admin only for now): make, model, year, category, fuel, gearbox,
+seats, daily rate and/or sale price, commune, mileage, photos.
 
-Aucun service d'e-mail n'est configuré : une nouvelle demande reste silencieuse
-jusqu'à ce qu'un administrateur ouvre `/admin/inquiries`. Choisir un fournisseur
-(SMTP ou API), ajouter les variables d'environnement correspondantes et un envoi
-à la création d'une demande. **Non implémenté à ce jour.**
+**Never enter a "centre of the commune" coordinate to make a marker appear.** If
+the position is unknown, choose `pending` — the database rejects coordinates with
+`pending`.
 
-### C5. Audit externe
+The optional demo seed has 6 properties — 2 with `commune` precision, 2
+`approximate`, **2 with `pending` and no coordinates**. The database is not
+committed; on a fresh checkout, only the 11 commune references are seeded. The
+42 missing communes remain to be confirmed/added from OpenStreetMap relations
+(`source='osm-nominatim'`), and real listing coordinates require client input.
 
-Un test d'intrusion et une revue de configuration serveur sont recommandés avant
-lancement. Aucun n'a été réalisé (voir risques résiduels dans
+### B3. Photographs
+
+- Client-supplied photos (rights confirmed in writing) **or** freely licensed
+  photos with exact author and licence.
+- Per photo: FR and AR alt text, credit, licence, optional source URL.
+- Note: uploads are re-encoded only at the metadata level, so images must arrive
+  already oriented (see A2).
+
+### B4. Identity and editorial content
+
+- Confirm the exact name, logo and palette (today: "RAYANE AFFAIRE", gold/sand/
+  ink).
+- Approve the `/about` copy, the services list and their descriptions.
+- **Confirm the founding year.** The year 2024 is *not* confirmed and must not be
+  published as fact; `BRAND.establishedYear` is configuration, not a verified
+  claim.
+- Approve opening hours, displayed languages and the privacy policy.
+
+### B5. Geographic scope
+
+- Confirm the covered area is Béjaïa and surroundings, and **which communes** must
+  appear in the reference data (11 of 53 present).
+- Supply OSM centroids for the missing communes (same method as `db/communes.ts`:
+  an OpenStreetMap relation, never an estimate).
+
+### B6. Visual reference
+
+- **The four reference screenshots announced as a visual target were never
+  supplied.** Provide them if pixel-level parity is expected. Until then the
+  interface follows its own identity and no pixel parity is claimed.
+
+---
+
+## Bloc C — Needs production environment access
+
+### C1. Hosting and domain
+
+- Choose a host **with a persistent disk** (see `docs/DEPLOYMENT_GUIDE.md` §1:
+  Vercel/Netlify do not fit without migrating to PostgreSQL plus object storage).
+- Reserve the domain, configure DNS, obtain the TLS certificate.
+
+### C2. Deployment and secrets
+
+- Generate a 48-byte `SESSION_SECRET` **different** from development.
+- Set `NEXT_PUBLIC_SITE_URL` to the final HTTPS URL **before** the build (these
+  values are frozen at compile time).
+- Create the production owner account with a strong password.
+- Run `npm run smoke -- https://<domain>` and record the result.
+
+### C3. Backups and monitoring
+
+- Daily backup (database + uploads) and **a tested restore** before opening.
+- HTTP monitoring and a disk-space alert; log rotation.
+
+### C4. Notification delivery
+
+No e-mail service is configured: a new enquiry stays silent until an
+administrator opens `/admin/inquiries`. Choose a provider (SMTP or API), add the
+environment variables and send on creation. **Not implemented.**
+
+### C5. External audit
+
+A penetration test and a server configuration review are recommended before
+launch. Neither has been performed (residual risks are in
 `docs/SECURITY_AUDIT.md`).
 
 ---
 
-## Bloc D — Nécessite une vérification par le client
+## Bloc D — Needs explicit client verification
 
-À faire valider explicitement, par écrit, avant d'annoncer le site comme terminé.
+To be confirmed in writing before the site is called finished.
 
-### D1. Exactitude des données publiées
+### D1. Accuracy of published data
 
-- Chaque annonce, prix et coordonnée doit être confirmé par l'agence.
-- Vérifier au minimum un échantillon de positions sur la carte en comparant avec
-  la réalité terrain.
-- Confirmer le niveau de précision déclaré pour chaque annonce.
+- Every listing, price and coordinate confirmed by the agency.
+- At minimum, spot-check map positions against the field.
+- Confirm the declared precision level for each listing.
 
-### D2. Droits sur les images
+### D2. Image rights
 
-- Confirmation écrite que l'agence détient les droits sur chaque photographie
-  publiée, et que les crédits/licences saisis sont exacts.
+- Written confirmation that the agency holds the rights to every published photo
+  and that the recorded credits and licences are exact.
 
-### D3. Contenus bilingues
+### D3. Bilingual content
 
-- Relecture des textes arabes par un locuteur natif (les traductions actuelles
-  sont fonctionnelles mais doivent être validées par l'agence).
-- Vérification du rendu RTL sur les appareils réellement utilisés par la clientèle
-  (Android d'entrée de gamme notamment).
-- Vérification que les libellés métier correspondent au vocabulaire local
-  (ex. « location saisonnière » vs « location courte durée »).
+- Native-speaker review of the Arabic copy (currently functional, must be
+  approved by the agency).
+- RTL rendering on the devices the clientele actually use (low-end Android in
+  particular).
+- Confirmation that business vocabulary matches local usage.
 
-### D4. Conformité et mentions légales
+### D4. Compliance and legal notices
 
-- Valider la politique de confidentialité et la durée de conservation des
-  demandes.
-- Confirmer les mentions légales à afficher (agrément, immatriculation).
-- Valider que la collecte du consentement dans les formulaires suffit au regard
-  de la réglementation applicable.
+- Approve the privacy policy and the enquiry retention period.
+- Confirm the legal notices to display (registration, tax identifiers).
+- Confirm the consent capture in the forms is sufficient for the applicable law.
 
-### D5. Validation fonctionnelle finale
+### D5. Final functional validation
 
-- Parcours complet réalisé par l'agence elle-même : connexion, création d'une
-  annonce avec photos, publication, réception d'une demande, réponse.
-- Confirmation que le tableau de bord correspond à la façon dont l'agence suit son
-  activité (statuts, périodes financières).
+- The agency walks the whole journey itself: login, create a listing with photos,
+  publish, receive an enquiry, reply.
+- Confirm the dashboard matches how the agency actually follows its activity.
 
 ---
 
-## Rappel des règles à conserver
+## Rules to keep
 
-1. **Ne rien inventer** : ni bien, ni prix, ni coordonnée, ni client, ni
-   statistique, ni numéro de téléphone.
-2. **Toujours déclarer la précision géographique** d'une annonce ; `pending` si
-   inconnue. La base refuse des coordonnées avec `pending`.
-3. **Ne pas désactiver un test** ni réduire la couverture pour faire passer une
-   suite.
-4. **Ne pas revendiquer** un déploiement, un push ou un test qui n'a pas été
-   exécuté et vérifié.
-5. **Ne pas committer** de secret ; `SESSION_SECRET` et `.env.local` restent hors
-   du dépôt.
-6. **Ne pas modifier** une migration déjà appliquée en production ; en ajouter une
-   nouvelle.
+1. **Invent nothing**: no listing, price, coordinate, client, review, statistic or
+   phone number.
+2. **Always declare geographic precision**; `pending` when unknown.
+3. **Do not disable a test or reduce coverage** to make a suite pass.
+4. **Do not claim** a deployment, a push or a test that was not actually executed
+   and verified. In particular: CI has run only if `gh run list` shows it.
+5. **Commit no secret**; `SESSION_SECRET` and `.env.local` stay out of the
+   repository.
+6. **Do not modify an applied migration**; add a new one.
+7. **Keep vehicle hiding central.** New code that reads vehicles for the public
+   must go through `getVehicleVisibility()`; a direct `SELECT` in a component is a
+   defect even if the section is currently visible.
+8. **Never narrow an audit exception** without the reason and expiry date that
+   justify it.

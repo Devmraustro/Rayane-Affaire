@@ -302,12 +302,14 @@ migration déjà appliqué.
 | Fichier | Contenu | Rejouable |
 | --- | --- | --- |
 | `db/migrations/001_vehicle_rental_setting.sql` | insère `vehicle_rental_enabled = 'true'` dans `settings` | Oui — `INSERT … ON CONFLICT DO NOTHING`, un choix déjà enregistré n'est jamais écrasé |
+| `db/migrations/002_vehicle_public_visibility.sql` | insère `vehicle_public_visible = 'false'`, interrupteur principal qui masque la section publique entière | Oui — `INSERT … ON CONFLICT DO NOTHING`, sans modifier ni supprimer le stock |
 
-Cette migration **ne change aucun comportement** : la location reste active par
-défaut, exactement comme avant son existence. Après déploiement, le réglage se
-pilote depuis `/admin/settings` (rôle `manager` minimum) ; le changement est
-immédiat côté public, mais le cache CDN éventuel doit être purgé si l'hébergeur
-en ajoute un devant l'application.
+La migration 001 préserve le réglage de location. La migration 002 adopte la
+politique de visibilité publique masquée par défaut : **le contenu véhicule reste
+intact dans le back-office**, mais ses routes et mentions publiques restent
+cachées tant qu'un manager n'active pas « Section véhicules sur le site public »
+dans `/admin/settings`. Après chaque migration, le changement est immédiat côté
+application ; purger tout cache CDN éventuel placé devant l'application.
 
 ---
 

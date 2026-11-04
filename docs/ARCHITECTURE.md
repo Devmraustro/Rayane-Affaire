@@ -34,8 +34,8 @@ architecturale majeure avec le projet de référence, qui stockait tout dans
 | Icônes | lucide-react | Cohérence visuelle |
 | Carte | Leaflet 1.9 + react-leaflet 5 + markercluster | Tuiles OpenStreetMap, pas de clé API, attribution obligatoire |
 | Base | SQLite via `node:sqlite` | Aucun service externe, sauvegarde = un fichier, suffisant pour un inventaire d'agence |
-| Validation | Zod 3 | Une seule source de vérité, messages convertis en clés i18n |
-| Tests | Vitest 3 | Rapide, ESM natif, aucune configuration de navigateur requise |
+| Validation | Zod 4 | Une seule source de vérité, messages convertis en clés i18n |
+| Tests | Vitest 5.1.0 | Unitaires et intégration Node, aucune configuration de navigateur requise |
 
 ### Pourquoi SQLite et pas PostgreSQL
 
@@ -170,74 +170,76 @@ PropertyPoint = { id, lat, lng, precision: 'exact' | 'approximate' | 'commune' }
 4. **Notifications** : un courriel ou message WhatsApp à chaque nouvelle demande
    (aujourd'hui la demande est uniquement persistée et visible dans `/admin`).
 
-## 9. Réglages opérationnels (visibilité de la location de véhicules)
+## 9. Réglages opérationnels (visibilité publique des véhicules)
 
-Certaines décisions ne relèvent pas du code mais de l'activité réelle de l'agence.
-Elles vivent dans la table `settings` et sont modifiables depuis
-`/admin/settings`, sans redéploiement.
+Deux décisions métier sont persistées dans `settings` et modifiables depuis
+`/admin/settings`, sans redéploiement. La première est le coupe-circuit global ;
+la deuxième ne s'applique qu'à l'intérieur du premier état.
 
 ```
-settings.vehicle_rental_enabled = 'true' | 'false'   (défaut 'true')
+settings.vehicle_public_visible = 'true' | 'false'   (défaut 'false')
+settings.vehicle_rental_enabled = 'true' | 'false'    (défaut 'true')
 
-lib/settings.ts             définition + valeurs autorisées (sans import de base)
-lib/db/settings.ts          lecture/écriture (isVehicleRentalEnabled)
-/api/admin/settings  PATCH  manager + CSRF + validation stricte + audit
-components/admin/vehicle-rental-toggle.tsx   interface (role="switch")
+lib/settings.ts             règles pures + résolution des états
+lib/db/settings.ts          lecture/écriture (getVehicleVisibility)
+/api/admin/settings PATCH   manager + CSRF + validation stricte + audit
+components/admin/vehicle-rental-toggle.tsx   contrôles bilingues
 ```
 
-Le drapeau est lu par `PublicShell` (une fois par page publique) et transmis aux
-menus, puis par chaque lecteur qui sert des véhicules :
+`resolveVehicleVisibility()` impose la priorité du drapeau principal : si
+`publicVisible` est faux, `rentalEnabled` devient faux également. Un réglage de
+location ne peut donc jamais divulguer une section masquée. En cas d'erreur de
+lecture des paramètres, la politique retombe sur masquée (fail-closed).
 
-| Couche | Effet quand la location est désactivée |
+Le masquage est une **projection à la lecture**, jamais une modification des
+annonces : la base, les photos et les valeurs d'inventaire restent intactes. Le
+back-office continue de lire et d'écrire les véhicules. Une bascule restaure la
+visibilité sans redémarrage ni reprise de données.
+
+### Interrupteur principal : section publique masquée
+
+Quand `vehicle_public_visible = false`, l'application entière omet les véhicules
+à destination du visiteur :
+
+| Couche | Garantie lorsque la section est masquée |
 | --- | --- |
-| `buildVehicleWhere` | exclut les annonces **uniquement** de location (`rent`) ; conserve `sale` **et** `both` |
-| `getVehicleBySlug` | même règle ⇒ `404` pour une annonce `rent` ; `sale` et `both` restent accessibles |
-| `listFeaturedVehicles` | même règle ⇒ la une montre l'inventaire de vente |
-| `listSimilarVehicles` | même règle ⇒ pas de location suggérée |
-| `getPublicStats` | compte l'inventaire de vente réellement visible |
-| `countPublicSaleVehicles` | alimente le menu, le CTA du héros et le sitemap |
-| `sitemap.ts` | `/vehicles` et les fiches de vente restent listés ; les URL de location disparaissent |
+| `buildVehicleWhere` / lecteurs catalogue | aucun véhicule public, quels que soient filtres et pagination |
+| `getVehicleBySlug` | retourne `null` ⇒ vraie réponse 404 pour chaque slug |
+| `listFeaturedVehicles` / similaires | listes vides |
+| `getPublicStats` | aucun véhicule ni commune de véhicule comptabilisé |
+| `PublicShell` / navigation | aucune entrée de menu ni libellé véhicule |
+| Accueil, services, à propos, footer, logo | aucune carte, CTA, sous-titre ou paragraphe véhicule |
+| Layout et métadonnées | titre, description, mots-clés, OpenGraph/Twitter immobiliers ; aucune chaîne véhicule |
+| `sitemap.ts` | aucune URL `/vehicles` ni fiche |
+| `POST /api/inquiries` | un `vehicleId` ne peut pas contourner le masquage ; la demande retombe sur le flux général |
+| Administration | catalogue, CRUD et médias conservés intégralement |
 
-### Ce que « conserver la vente » veut dire exactement
+### Réglage secondaire : location de véhicules
 
-Une première version désactivait la location en retirant **toute** la surface
-véhicules : entrée de menu, bloc de la une, URL du sitemap. Les annonces de vente
-restaient en base mais devenaient introuvables — le réglage masquait donc la
-vente, contrairement à l'exigence. Comportement actuel, par type d'annonce :
+Il est consulté seulement quand la section est publique. La règle asymétrique est
+volontaire : **le réglage retire la location, jamais la vente.**
 
 | `deal_type` | Location activée | Location désactivée |
 | --- | --- | --- |
 | `sale` | visible, prix de vente | **visible à l'identique** |
 | `rent` | visible, prix/jour | **invisible** (`404`, hors menu, hors sitemap) |
-| `both` | visible, prix/jour **et** prix de vente | **visible comme une vente** : badge « Vente », prix de vente seul, prix/jour retiré |
+| `both` | visible, prix/jour **et** prix de vente | **visible comme une vente** : prix de vente seul, prix/jour retiré |
 
-La projection de `both` est une **vue**, pas une écriture : `projectVehicleForPublic`
-(`lib/settings.ts`) transforme `{dealType:'both', dailyPrice, salePrice}` en
-`{dealType:'sale', dailyPrice:null, salePrice}` au moment du rendu public. La ligne
-en base conserve `deal_type='both'` et ses deux prix, donc réactiver la location
-restaure l'affichage d'origine sans migration ni perte de donnée. Les lecteurs
-d'administration (`getVehicleById`, `listAdminVehicles`) ne projettent jamais :
-l'opérateur voit toujours le type réel et les deux prix.
+`projectVehicleForPublic()` (`lib/settings.ts`) transforme une ligne `both` en
+projection `sale` sans modifier ses deux prix en base. Les lecteurs
+administratifs (`getVehicleById`, `listAdminVehicles`) ne projettent jamais.
+La contrainte SQL interdit déjà un `both` sans prix de vente ; la requête publique
+vérifie aussi le prix (`SAFE_PROJECTION_SQL`).
 
-`both` ne peut pas exister sans prix de vente : la table impose
-`CHECK (deal_type <> 'both' OR (daily_price IS NOT NULL AND sale_price IS NOT NULL))`.
-La requête publique revérifie tout de même `sale_price IS NOT NULL`
-(`SAFE_PROJECTION_SQL`) — défense en profondeur si un jour la contrainte était
-assouplie.
+Quand la location est désactivée, le menu propose « Véhicules à vendre » s'il y
+a du stock de vente ; le catalogue et le sitemap ne gardent que les fiches
+vendables. Sans stock de vente, menu et sitemap omettent la section. CTA, carte de
+service, filtre `rent`/`both`, réservation et mentions locatives disparaissent.
 
-### Conséquence sur la navigation et le référencement
-
-Le menu ne peut pas être simplement « avec » ou « sans » entrée véhicules :
-
-| Situation | Menu | Sitemap |
-| --- | --- | --- |
-| Location activée | « Véhicules » → `/vehicles` | `/vehicles` + fiches |
-| Location désactivée, stock de vente présent | « Véhicules à vendre » → `/vehicles` | `/vehicles` + fiches de vente |
-| Location désactivée, aucun stock de vente | entrée retirée | `/vehicles` absent |
-
-Le libellé change parce que la promesse change : un lien « Véhicules » ouvrant un
-catalogue sans location serait trompeur. L'entrée n'est retirée que lorsqu'il n'y
-a réellement rien à vendre, pour ne pas mener à un catalogue vide.
+Les deux réglages sont couverts par `tests/vehicle-rental-setting.test.ts`. Le
+smoke de build a vérifié la section cachée et publique (17/17 dans chaque état),
+avec bascule en base sans redémarrer le serveur. Aucune ligne véhicule n'a été
+supprimée pendant la vérification.
 
 ### Piège à connaître : `loading.tsx` et les codes de statut
 

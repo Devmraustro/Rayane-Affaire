@@ -82,7 +82,8 @@ permet donc pas de rejouer une session sans le secret serveur.
 | Quota | **Mis en œuvre** | 40 envois / 10 min / IP. |
 | Attribution obligatoire | **Mis en œuvre** | Le serveur exige un crédit, une licence et un texte alternatif bilingue (`422` avec codes i18n). Une photographie sans droits documentés ne peut pas être enregistrée, ce qui répond à l'interdiction explicite de publier des images non attribuées. |
 | Analyse antivirus | **Absent** | Aucune analyse de contenu. Recommandé si des tiers déposent des fichiers. |
-| Ré-encodage des images | **Absent** | Pas de retrait des métadonnées EXIF. À prévoir (confidentialité : coordonnées GPS dans les photos client). |
+| Retrait des métadonnées d'image | **Mis en œuvre** | `lib/server/image-sanitize.ts` réécrit JPEG/PNG/WebP avant l'écriture disque : retire EXIF/GPS, XMP, IPTC/commentaires et chunks texte selon le conteneur, tout en gardant les données pixels compressées inchangées. Un AVIF avec EXIF/XMP est refusé en fermé ; aucun original non traité n'est sauvegardé. Tests dans `tests/image-sanitize.test.ts`. |
+| Ré-encodage / orientation pixels | **Partiel** | Aucun décodeur/ré-encodeur d'image n'est embarqué. Le tag EXIF d'orientation est donc supprimé, pas appliqué aux pixels : réorienter les photos avant upload. La correction automatique nécessitera un décodeur et une migration décidée. |
 
 ---
 
@@ -132,7 +133,7 @@ OSM et deux CDN d'images sous licence. Aucun script tiers n'est autorisé.
 | --- | --- | --- |
 | Pas de 2FA pour les comptes administrateurs | Moyenne | Accepté tant qu'il y a un seul utilisateur ; à traiter avant multi-utilisateurs. |
 | Pas de réinitialisation de mot de passe en libre-service | Faible | Procédure manuelle documentée. |
-| Métadonnées EXIF des photos non retirées | Faible | À implémenter avant l'ouverture au public (bloc D du handoff). |
+| Orientation EXIF non appliquée aux pixels | Faible | Les métadonnées sont retirées ; une photo prise en portrait peut s'afficher couchée. Réorienter avant upload (voir `docs/OPENCODE_HANDOFF.md` A2). |
 | SQLite : un seul nœud, sauvegarde à organiser | Moyenne (exploitation) | Procédure de sauvegarde documentée dans `DEPLOYMENT_GUIDE.md`. |
 | Aucun test d'intrusion externe | — | À planifier avant lancement public. |
 | Sauvegarde des uploads non automatisée | Moyenne | À mettre en place en production (bloc C du handoff). |
@@ -144,7 +145,38 @@ ODbL).
 
 ---
 
-## 10. Ce qui a été vérifié par des tests
+## 10. Dépendances et audit automatisé
+
+Audit exécuté localement le 4 novembre 2026, sur le lockfile de ce changement :
+
+- `npm audit` (toutes les dépendances) : **20 vulnérabilités recensées** — 19
+  modérées, 1 haute, 0 critique. Les deux critiques précédemment signalées dans
+  Vitest/Tinypool ont été supprimées en mettant à jour Vitest vers **5.1.0** ;
+  les 215 tests passent avec cette version.
+- `npm audit --omit=dev` : **2 vulnérabilités** — 1 haute et 1 modérée. La haute
+  est `postcss@8.4.31` imbriqué dans Next 15.5.28 ; la modérée concerne Next.
+  Une mise à jour majeure vers Next 16.4.5 est proposée comme correctif, mais
+  elle n'a pas été exécutée ni validée dans ce changement.
+- Le risque postcss reste une **exception documentée, pas un correctif**. Les
+  quatre GHSA concernés, la justification et l'expiration au **31 mars 2027**
+  sont dans `.github/audit-exceptions.json`. PostCSS compile les feuilles CSS du
+  projet ; le serveur ne traite pas de CSS fourni par un utilisateur. L'exception
+  expire automatiquement côté gate.
+
+`.github/workflows/ci.yml` rapporte l'audit du graphe complet et exécute
+`scripts/audit-gate.mjs`. Le gate bloque tout avis high/critical non accepté dans
+les dépendances runtime **ou** de build/test. Une exception doit avoir un nom de
+package unique, une sévérité, une raison motivée d'au moins 20 caractères, des identifiants GHSA
+qui correspondent aux avis constatés et une date ISO valide non expirée. Tests
+manuels du gate : exception courante acceptée ; exception expirée, package sans
+rapport, raison absente et identifiant d'avis erroné bloqués.
+
+Le workflow a été vérifié localement, **pas encore par GitHub Actions à la date
+de ce rapport**. Consulter `gh run list` avant de qualifier un état de CI.
+
+---
+
+## 11. Ce qui a été vérifié par des tests
 
 Exécutés par `npm test` (voir `docs/TESTING_REPORT.md` pour les résultats) :
 
@@ -156,6 +188,9 @@ Exécutés par `npm test` (voir `docs/TESTING_REPORT.md` pour les résultats) :
   des compteurs, hachage irréversible des identifiants ;
 - téléversement : détection JPEG/PNG/WebP, refus SVG/HTML/PHP, refus de taille,
   refus d'un fichier déguisé, suppression limitée au schéma généré ;
+- retrait des métadonnées JPEG/PNG/WebP : GPS absent après traitement,
+  chunks non visuels retirés, structure et données pixels conservées ; AVIF
+  porteur de métadonnées refusé ; les octets malformés échouent en fermé ;
 - API : `401` sans session, `401` session expirée, `401` session révoquée, `401`
   jeton forgé, `403` CSRF absent/faux, `403` rôle insuffisant, `403` origine
   différente, `422` validation, `404` identifiant inconnu, `429` limitation ;

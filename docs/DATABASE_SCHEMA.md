@@ -228,15 +228,16 @@ restent dans l'environnement.
 
 | Clé | Valeurs | Défaut | Effet |
 | --- | --- | --- | --- |
-| `vehicle_rental_enabled` | `'true'` \| `'false'` | `'true'` | Expose ou masque l'offre de location de véhicules sur le site public (voir `docs/API_DOCUMENTATION.md`) |
+| `vehicle_public_visible` | `'true'` \| `'false'` | `'false'` | Interrupteur principal : autorise ou masque toute la section véhicules publique |
+| `vehicle_rental_enabled` | `'true'` \| `'false'` | `'true'` | Affine la section déjà publique : offre ou retire uniquement les locations |
 
-Insérée par la migration `db/migrations/001_vehicle_rental_setting.sql`
-(`ON CONFLICT DO NOTHING`, donc un choix déjà enregistré n'est jamais écrasé).
-Une valeur illisible est traitée comme le défaut ; une ligne absente aussi, ce
-qui rend le réglage rétro-compatible avec une base migrée avant son existence.
-
-**Le défaut `'true'` préserve le comportement antérieur** : déployer ce réglage
-ne change rien tant qu'un opérateur ne le désactive pas explicitement.
+`vehicle_rental_enabled` est créée par `db/migrations/001_vehicle_rental_setting.sql`;
+`vehicle_public_visible` par `db/migrations/002_vehicle_public_visibility.sql`.
+Les deux migrations utilisent `ON CONFLICT DO NOTHING` : un choix existant n'est
+jamais écrasé. Une valeur absente ou illisible retombe sur le défaut documenté.
+Le réglage principal est donc masqué par défaut sur une installation neuve et
+après l'application de la migration 002, tandis que l'inventaire reste intact en
+base et visible au back-office.
 
 ---
 

@@ -249,50 +249,71 @@ Rôle : `editor`.
 
 ### `PATCH /api/admin/settings`
 
-Rôle requis : **`manager`** minimum. Changer la visibilité de la location de
-véhicules retire une page publique : ce n'est pas une décision de rédaction.
+Rôle requis : **`manager`** minimum. Les paramètres modifient la surface
+publique et ne sont pas une décision éditoriale mineure.
+
+Le champ principal masque ou expose toute la section ; le second ne s'applique
+qu'à une section déjà exposée. Un seul appel peut soumettre l'un ou les deux :
 
 ```json
-{ "vehicleRentalEnabled": false }
+{ "vehiclePublicVisible": false }
 ```
 
-Réponse `200` :
+Réponse `200` (exemple) :
 
 ```json
-{ "ok": true, "data": { "vehicleRentalEnabled": false, "changed": true } }
+{
+  "ok": true,
+  "data": {
+    "vehiclePublicVisible": false,
+    "vehicleRentalEnabled": true,
+    "changed": true
+  }
+}
 ```
 
 | Champ | Règle |
 | --- | --- |
-| `vehicleRentalEnabled` | booléen strict |
+| `vehiclePublicVisible` | booléen strict ; défaut enregistré : `false` |
+| `vehicleRentalEnabled` | booléen strict ; défaut enregistré : `true`, consulté seulement si `vehiclePublicVisible` est vrai |
 | objet | **strict** : toute clé inconnue est refusée (`422`), aucun réglage inventé n'est accepté |
 | corps | au moins une clé, sinon `422` |
 
-- `changed` vaut `false` quand la valeur soumise est identique à la valeur
-  stockée : aucune ligne d'audit n'est alors écrite.
-- l'audit enregistre `settings.update` avec la valeur **avant** et **après**.
+Le réglage secondaire est conservé pendant le masquage global : une valeur `true`
+peut donc apparaître dans la réponse alors que `vehiclePublicVisible` vaut
+`false`. Elle n'a alors aucun effet public ; la bascule principale ne détruit pas
+le choix opérationnel de location.
+
+- `changed` vaut `false` quand aucun des réglages fournis n'a changé : aucune
+  ligne d'audit n'est alors écrite.
+- l'audit enregistre `settings.update` avec les valeurs **avant** et **après**.
 - erreurs : `401`, `403` (`FORBIDDEN` / `CSRF`), `400` (JSON illisible),
   `422` (`admin.validation.invalidSetting`).
 
-Effet public immédiat de `vehicleRentalEnabled: false` — vérifié de bout en bout :
+Effet public immédiat de `vehiclePublicVisible: false` :
 
 | Surface | Comportement |
 | --- | --- |
-| Menu (en-tête, tiroir mobile, pied de page) | libellé « Véhicules à vendre » / « سيارات للبيع », toujours vers `/vehicles` ; entrée retirée **seulement** s'il n'existe aucun stock de vente |
-| `/vehicles` | reste accessible et devient un catalogue de vente ; les annonces `rent` sont exclues, `sale` et `both` restent visibles |
-| `/vehicles/[slug]` | `404` pour une annonce `rent` ; `200` pour `sale` et pour `both` (présentée comme une vente) |
-| Une de la page d'accueil | bloc « Véhicules à vendre à la une » alimenté par l'inventaire de vente ; CTA du héros « Véhicules à vendre » |
-| Bandeau de chiffres | tuile véhicules conservée et alignée sur l'inventaire de vente visible (masquée seulement si ce total est nul) |
-| `/services` | carte « Location de véhicules » retirée |
-| `sitemap.xml` | `/vehicles` et les fiches de vente conservés ; les fiches de location retirées |
-| Métadonnées | description et mots-clés passent de « location de véhicules » à « vente de véhicules » |
-| Textes « à propos » | la phrase de positionnement ne promet plus la location |
-| Back-office | **inchangé** : tout l'inventaire reste visible et modifiable, avec le `deal_type` réel |
-| Immobilier | **inchangé** dans les deux états |
+| Navigation | aucune entrée ou libellé véhicule |
+| `/vehicles` et `/vehicles/[slug]` | `404`, y compris les fiches existantes |
+| Accueil, services, à propos, footer, logo | aucune carte, CTA, sous-titre ou mention véhicule |
+| Métadonnées et sitemap | marque immobilière uniquement, aucune URL de véhicule |
+| Statistiques publiques | aucun véhicule ou commune de véhicule comptabilisé |
+| `POST /api/inquiries` avec `vehicleId` | l'identifiant ne contourne pas le masquage ; demande ramenée au flux général |
+| Back-office | inventaire et CRUD inchangés, aucune ligne supprimée |
 
-Détail du cas `both` : l'annonce reste publique mais son prix de location n'est
-jamais exposé (ni prix/jour, ni libellé « Prix de location », ni action de
-réservation). La ligne en base n'est pas modifiée — seule la vue l'est.
+Quand `vehiclePublicVisible: true`, le réglage secondaire `vehicleRentalEnabled`
+retire la location, jamais la vente :
+
+| `deal_type` | Location activée | Location désactivée |
+| --- | --- | --- |
+| `sale` | visible, prix de vente | **inchangée** |
+| `rent` | visible, prix/jour | **`404`**, hors menu et sitemap |
+| `both` | visible, prix/jour et prix de vente | visible comme une vente, prix/jour retiré, ligne intacte |
+
+Le basculement restaure la visibilité sans redémarrage ni modification des
+annonces. Tests réels : `tests/api.test.ts` et
+`tests/vehicle-rental-setting.test.ts`.
 
 ---
 
@@ -308,20 +329,24 @@ Rôle : `editor`. `multipart/form-data`.
 | `entityId` | identifiant de l'annonce |
 | `files` | 1 à 8 fichiers |
 | `altFr`, `altAr` | textes alternatifs bilingues (obligatoires) |
-| `credit` | auteur ou agence (fortement recommandé ; `NULL` accepté en base) |
-| `license` | licence ou mention de propriété (fortement recommandé) |
+| `credit` | auteur ou agence (obligatoire par le serveur) |
+| `license` | licence ou mention de propriété (obligatoire par le serveur) |
 | `sourceUrl` | facultatif |
 
 L'interface (`components/admin/media-manager.tsx`) rend le crédit et la licence
-obligatoires avant l'envoi ; le serveur les stocke tels quels et ne les invente
-jamais. Un média sans crédit est signalé comme une attribution manquante dans le
-processus éditorial (voir `docs/OPENCODE_HANDOFF.md`, bloc D).
+obligatoires avant l'envoi ; le serveur les valide aussi et refuse un média qui
+en est dépourvu. Ils sont stockés tels quels, jamais inventés.
 
 Validation : 5 Mo maximum par fichier, 8 fichiers par requête, type réel
 déterminé par les **magic bytes** (JPEG, PNG, WebP, AVIF) et non par le
 `Content-Type` annoncé ; SVG, HTML ou PHP sont rejetés même renommés en `.png`.
 Nom de fichier généré (UUID), donc aucune donnée utilisateur dans le chemin.
-Quota dédié : 40 envois par 10 minutes et par IP.
+Avant toute écriture, JPEG/PNG/WebP sont débarrassés des métadonnées EXIF/GPS,
+XMP/IPTC, commentaires ou chunks textuels ; les données pixels compressées sont
+conservées. Un AVIF portant EXIF/XMP est refusé (HTTP 415,
+`UNSTRIPPABLE_METADATA`) car le réécrire sans corrompre ses offsets n'est pas
+sûr. Le tag EXIF d'orientation est retiré lui aussi : les images doivent être
+réorientées avant l'upload. Quota dédié : 40 envois par 10 minutes et par IP.
 
 Réponse `200` :
 

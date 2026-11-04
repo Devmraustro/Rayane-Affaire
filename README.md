@@ -19,6 +19,7 @@ Site public bilingue (français / العربية), back-office authentifié, bas
 - [Scripts](#scripts)
 - [Structure du dépôt](#structure-du-dépôt)
 - [Principes de données](#principes-de-données)
+- [Intégration continue](#intégration-continue)
 - [Documentation](#documentation)
 
 ---
@@ -29,11 +30,11 @@ Site public bilingue (français / العربية), back-office authentifié, bas
 
 | Page | Contenu |
 | --- | --- |
-| `/` | Héro, panneau de recherche, chiffres réels issus de la base, biens et véhicules en vedette, services, présentation, contact |
+| `/` | Héro, panneau de recherche, chiffres réels issus de la base, biens en vedette et véhicules seulement si leur visibilité publique est activée, services, présentation, contact |
 | `/properties` | Catalogue filtrable (catégorie, transaction, commune, prix, surface, chambres, ameublement, disponibilité), recherche plein texte FR/AR, tri, pagination |
 | `/properties/[slug]` | Galerie, caractéristiques, carte avec niveau de précision, formulaire de contact relié à l'annonce |
-| `/vehicles` | Catalogue véhicules (catégorie, marque, carburant, boîte, places, prix) |
-| `/vehicles/[slug]` | Fiche détaillée, équipements, contact |
+| `/vehicles` | Catalogue véhicules (catégorie, marque, carburant, boîte, places, prix), uniquement lorsque la visibilité publique est activée dans les paramètres |
+| `/vehicles/[slug]` | Fiche détaillée, équipements, contact (404 tant que la section est masquée) |
 | `/map` | Carte Leaflet : marqueurs uniquement pour les positions vérifiées, légende de précision, compteur de biens non localisables |
 | `/services`, `/about`, `/contact` | Pages éditoriales, coordonnées issues de la configuration |
 | `/credits` | Crédits et sources : attribution OpenStreetMap/ODbL, origine des photographies, statut des visuels de marque |
@@ -45,10 +46,38 @@ Site public bilingue (français / العربية), back-office authentifié, bas
 - **Sécurité** : CSP à nonce, HSTS en production, `nosniff`, `Referrer-Policy`,
   `Permissions-Policy`, cadre d'intégration limité.
 
-### Réglage : location de véhicules
+### Réglage : visibilité publique des véhicules
 
-L'agence peut déclarer, depuis `/admin/settings`, qu'elle **ne propose pas** la
-location de véhicules. Le réglage retire alors **la location, jamais la vente** :
+Deux réglages, dans `/admin/settings`, dont **le premier commande le second**.
+
+**1. Interrupteur principal — « Section véhicules sur le site public »**
+(`vehicle_public_visible`, défaut **désactivé**). Désactivé, le site public
+n'expose **rien** des véhicules :
+
+| Surface | Section masquée |
+| --- | --- |
+| Menu de navigation | entrée absente |
+| `/vehicles` et `/vehicles/<slug>` | **`404`**, aucune donnée, aucune métadonnée |
+| Accueil (cartes, chiffres, CTA, sous-titre) | absents |
+| Page services, page à propos, pied de page, accroche du logo | aucune mention |
+| `sitemap.xml` | aucune URL véhicule |
+| `<title>`, description, mots-clés, OpenGraph/Twitter | version « agence immobilière » |
+| Statistiques publiques | aucun véhicule compté |
+| `POST /api/inquiries` avec `vehicleId` | référence ignorée, type ramené à `general` |
+
+Le back-office **conserve tout** : liste, création, modification, suppression,
+photos, caractéristiques, prix, disponibilité, statut, et les enregistrements
+existants. **Aucune ligne n'est supprimée ni modifiée** : le masquage est une
+projection à la lecture (`lib/db/settings.ts` → `getVehicleVisibility()`,
+`lib/settings.ts` → `resolveVehicleVisibility`), donc réafficher la section
+demande **un simple basculement**, sans reprise de données.
+
+En cas d'erreur de base, la lecture retombe sur « masquée » : le site peut
+sous-afficher, jamais divulguer.
+
+**2. Réglage secondaire — « Location de véhicules »**
+(`vehicle_rental_enabled`). Il n'est consulté que si la section est publique. Il
+retire alors **la location, jamais la vente** :
 
 | Annonce | Location activée | Location désactivée |
 | --- | --- | --- |
@@ -56,17 +85,8 @@ location de véhicules. Le réglage retire alors **la location, jamais la vente*
 | `rent` (location) | visible | **`404`**, hors menu et hors `sitemap` |
 | `both` (les deux) | visible, prix/jour + prix de vente | **visible comme une vente** : prix de vente seul, prix/jour retiré |
 
-Le menu propose « Véhicules à vendre » (et seulement s'il existe du stock à
-vendre), le catalogue `/vehicles` reste joignable, la une met en avant
-l'inventaire de vente et le `sitemap.xml` conserve les URL de vente. Disparaissent
-en revanche les surfaces proprement locatives : CTA « Louer un véhicule », carte
-« Location de véhicules », filtre `rent`/`both`, action de réservation, et les
-mentions de location dans les métadonnées et les textes de présentation.
-
 L'annonce `both` n'est **pas** réécrite en base : seule sa présentation publique
-change, donc réactiver la location restaure l'affichage d'origine. Le back-office
-continue d'afficher l'inventaire complet avec le `deal_type` réel. Défaut `true`
-(comportement antérieur préservé) et chaque changement est journalisé.
+change. Chaque changement est journalisé dans le journal d'audit.
 
 ### Back-office (`/admin`)
 
@@ -76,14 +96,20 @@ continue d'afficher l'inventaire complet avec le `deal_type` réel. Défaut `tru
 | Vue d'ensemble | 6 indicateurs principaux + 4 secondaires, tous calculés par `COUNT`/`SUM` sur la base |
 | Biens | Création, édition, publication (*brouillon / publié / archivé*), suppression (rôle manager+), référence `RA-P-####` générée |
 | Véhicules | Idem, référence `RA-V-####` |
-| Médias | Upload multipart validé par *magic bytes* (JPEG/PNG/WebP/AVIF), 5 Mo max, noms UUID ; crédit, licence et texte alternatif bilingue **exigés par le serveur** |
+| Médias | Upload multipart validé par *magic bytes* (JPEG/PNG/WebP/AVIF), 5 Mo max, noms UUID ; EXIF/GPS, XMP, IPTC, commentaires JPEG et texte PNG retirés avant écriture ; crédit, licence et texte alternatif bilingue **exigés par le serveur** |
 | Demandes | File de travail avec statuts (nouveau → contacté → qualifié → gagné/perdu/spam) et notes internes |
 | Clients | Liste issue des réservations réelles |
 | Réservations | Montants, acomptes, statuts |
 | Calendrier | Grille mensuelle construite à partir des réservations |
 | Finances | Chiffre d'affaires par période, hors données de démonstration |
-| Paramètres | Interrupteur **location de véhicules** (persisté), état de la configuration, communes, environnement, journal d'audit |
+| Paramètres | Interrupteur principal de **visibilité publique des véhicules** (défaut masqué, fail-closed) + réglage secondaire **location de véhicules**, tous deux persistés ; état de la configuration, communes, environnement, journal d'audit |
 | Journal d'audit | Toute écriture est tracée (acteur, action, cible, horodatage) |
+
+Le retrait de métadonnées garde les données pixels compressées intactes. Un AVIF
+contenant EXIF/XMP est refusé en fermé (réenregistrer en JPEG/WebP) ; les photos
+doivent être correctement orientées **avant** upload, car le tag EXIF
+d'orientation est lui aussi supprimé. Détails : `lib/server/image-sanitize.ts`
+et `docs/SECURITY_AUDIT.md`.
 
 Chaque écriture exige : session valide **en base**, jeton CSRF, rôle suffisant, et
 laisse une ligne d'audit.
@@ -165,7 +191,8 @@ Liste complète et commentée : [`docs/ENVIRONMENT_VARIABLES.md`](docs/ENVIRONME
 | `npm run db:migrate` | Applique le schéma (`-- --reset` repart de zéro) |
 | `npm run db:seed:admin` | Crée un administrateur |
 | `npm run db:seed:demo` | Données de démonstration (`-- --purge` pour les retirer) |
-| `npm run smoke -- https://domaine` | Vérifications post-déploiement |
+| `npm run smoke -- https://domaine` | Vérifications post-déploiement (17 contrôles) |
+| `npm run audit:gate` | Bloque toute vulnérabilité haute/critique non documentée |
 
 ---
 
@@ -176,10 +203,11 @@ app/                 routes App Router (site public, /admin, /api)
 components/          ui/ layout/ shared/ home/ properties/ vehicles/ map/ admin/
 lib/
   db/                repositories (accès SQLite typé)
-  server/            session, authz, audit, upload, rate-limit, env
+  server/            session, authz, audit, upload + sanitisation d'image, rate-limit, env
   i18n/              dictionnaires fr/ar + provider client
 db/                  schema.sql, migrations, seeds, client
-scripts/             visuels de marque, smoke test
+.github/workflows/   CI qualité + sécurité
+scripts/             visuels de marque, smoke test, audit gate
 tests/               Vitest (unitaire + intégration)
 docs/                documentation technique
 data/                base locale + uploads (non versionnés)
@@ -199,6 +227,26 @@ data/                base locale + uploads (non versionnés)
    licence ; le serveur refuse toute image sans droits documentés (`422`).
 4. **Les chiffres affichés viennent de la base**, jamais d'un tableau de bord
    décoratif.
+
+---
+
+## Intégration continue
+
+`.github/workflows/ci.yml` s'exécute à chaque push et chaque pull request :
+
+| Job | Étapes |
+| --- | --- |
+| `quality` | `npm ci` → `typecheck` → `lint` → `db:migrate` sur une base vide → `test` → `build` |
+| `security` | rapport d'audit, puis `node scripts/audit-gate.mjs`, et refus d'un fichier `.env` ou d'une base commitée |
+
+Toutes ces commandes s'exécutent aussi en local (`npm run verify`), donc un
+pipeline vert signifie exactement ce qu'un passage local vert signifie. **Le
+pipeline ne déploie rien.**
+
+Une vulnérabilité haute ou critique bloque le build, sauf si elle est couverte
+par une entrée motivée **et datée** dans `.github/audit-exceptions.json` ; une
+entrée expirée fait échouer le build, ce qui interdit d'en faire un silence
+permanent.
 
 ---
 
