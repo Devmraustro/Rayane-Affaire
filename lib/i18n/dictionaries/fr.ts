@@ -1,0 +1,681 @@
+/**
+ * French dictionary — the reference locale.
+ *
+ * `ar.ts` is typed as `Dictionary` (i.e. `typeof fr`), so any key added here is
+ * a compile error until it is translated. That is how we guarantee the switch
+ * changes the *whole* application and not just a handful of labels.
+ */
+export const fr = {
+  meta: {
+    defaultTitle: 'RAYANE AFFAIRE — Immobilier & véhicules à Béjaïa',
+    // Title while the vehicle section is hidden: the <title> is the single most
+    // visible public string, so it must not promise a section that 404s.
+    defaultTitleRealEstate: 'RAYANE AFFAIRE — Agence immobilière à Béjaïa',
+    defaultDescription:
+      'Location et vente de biens immobiliers, meublés de courte durée et location de véhicules dans la wilaya de Béjaïa. Des annonces vérifiées, des prix annoncés.',
+    // Site-wide description when the agency does not rent vehicles. Metadata is
+    // the most visible marketing claim of all: promising a rental service the
+    // agency does not have would be exactly the kind of false advertising the
+    // brief forbids.
+    defaultDescriptionNoRental:
+      'Location et vente de biens immobiliers, meublés de courte durée et vente de véhicules dans la wilaya de Béjaïa. Des annonces vérifiées, des prix annoncés.',
+    // Site-wide description when the vehicle section is hidden entirely: the
+    // agency presents itself as a real-estate agency, because that is now the
+    // whole public offer.
+    defaultDescriptionRealEstate:
+      'Agence immobilière à Béjaïa : vente et location d’appartements, de villas, de locaux commerciaux et de terrains dans la wilaya de Béjaïa. Des annonces vérifiées, des prix annoncés.',
+    propertiesTitle: 'Biens immobiliers',
+    vehiclesTitle: 'Véhicules',
+    mapTitle: 'Carte des biens',
+    servicesTitle: 'Nos services',
+    aboutTitle: 'À propos',
+    contactTitle: 'Contact',
+    adminTitle: 'Administration',
+  },
+
+  nav: {
+    home: 'Accueil',
+    properties: 'Biens',
+    vehicles: 'Véhicules',
+    // Used when the agency has no rental service but does sell vehicles.
+    vehicleSales: 'Véhicules à vendre',
+    map: 'Carte',
+    services: 'Services',
+    about: 'À propos',
+    contact: 'Contact',
+    admin: 'Administration',
+    menu: 'Menu',
+    close: 'Fermer',
+  },
+
+  common: {
+    loading: 'Chargement…',
+    search: 'Rechercher',
+    searchPlaceholder: 'Ville, quartier, référence…',
+    reset: 'Réinitialiser',
+    filters: 'Filtres',
+    apply: 'Appliquer',
+    all: 'Tous',
+    any: 'Indifférent',
+    from: 'à partir de',
+    perMonth: '/ mois',
+    perNight: '/ nuit',
+    perDay: '/ jour',
+    total: 'prix total',
+    currency: 'DA',
+    results: 'résultats',
+    result: 'résultat',
+    noResults: 'Aucun résultat',
+    showMore: 'Voir plus',
+    showAll: 'Tout voir',
+    seeDetails: 'Voir le détail',
+    backToList: 'Retour à la liste',
+    previous: 'Précédent',
+    next: 'Suivant',
+    page: 'Page',
+    of: 'sur',
+    sortBy: 'Trier par',
+    sort: {
+      newest: 'Plus récents',
+      'price-asc': 'Prix croissant',
+      'price-desc': 'Prix décroissant',
+      'surface-desc': 'Surface décroissante',
+      'year-desc': 'Année décroissante',
+      relevance: 'Pertinence',
+    },
+    language: 'Langue',
+    french: 'Français',
+    arabic: 'العربية',
+    copied: 'Copié',
+    copy: 'Copier',
+    reference: 'Référence',
+    optional: 'facultatif',
+    required: 'obligatoire',
+    yes: 'Oui',
+    no: 'Non',
+    error: 'Une erreur est survenue.',
+    retry: 'Réessayer',
+    empty: 'Rien à afficher pour le moment.',
+    demoNotice:
+      'Annonce de démonstration — elle ne correspond pas à un bien réel de l’agence.',
+    verifiedLocation: 'Localisation vérifiée',
+  },
+
+  labels: {
+    propertyCategory: {
+      apartment: 'Appartement',
+      studio: 'Studio',
+      villa: 'Villa',
+      house: 'Maison',
+      commercial: 'Local commercial',
+      land: 'Terrain',
+      office: 'Bureau',
+    },
+    transaction: {
+      rent_annual: 'Location annuelle',
+      rent_short: 'Location courte durée',
+      sale: 'Vente',
+      exchange: 'Échange',
+    },
+    priceUnit: { month: '/ mois', night: '/ nuit', total: 'au total' },
+    furnishing: {
+      furnished: 'Meublé',
+      unfurnished: 'Non meublé',
+      semi_furnished: 'Semi-meublé',
+    },
+    availability: {
+      available: 'Disponible',
+      reserved: 'Réservé',
+      unavailable: 'Indisponible',
+    },
+    vehicleCategory: {
+      economy: 'Économique',
+      sedan: 'Berline',
+      suv: 'SUV',
+      luxury: 'Luxe',
+      utility: 'Utilitaire',
+      van: 'Minibus',
+    },
+    transmission: { manual: 'Manuelle', automatic: 'Automatique' },
+    fuel: { petrol: 'Essence', diesel: 'Diesel', hybrid: 'Hybride', electric: 'Électrique', lpg: 'GPL' },
+    dealType: { rent: 'Location', sale: 'Vente', both: 'Location & vente' },
+    precision: {
+      exact: 'Adresse exacte vérifiée',
+      approximate: 'Position approximative (quartier)',
+      commune: 'Position à l’échelle de la commune',
+      pending: 'Position en cours de vérification',
+    },
+    precisionShort: {
+      exact: 'Exacte',
+      approximate: 'Approximative',
+      commune: 'Commune',
+      pending: 'À vérifier',
+    },
+    status: { draft: 'Brouillon', published: 'Publié', archived: 'Archivé' },
+    inquiryStatus: {
+      new: 'Nouvelle',
+      contacted: 'Contactée',
+      qualified: 'Qualifiée',
+      won: 'Gagnée',
+      lost: 'Perdue',
+      spam: 'Indésirable',
+    },
+    inquiryType: {
+      property: 'Bien immobilier',
+      vehicle: 'Véhicule',
+      general: 'Général',
+      reservation: 'Réservation',
+    },
+    reservationStatus: {
+      pending: 'En attente',
+      confirmed: 'Confirmée',
+      active: 'En cours',
+      completed: 'Terminée',
+      cancelled: 'Annulée',
+    },
+    role: { owner: 'Propriétaire', manager: 'Gestionnaire', editor: 'Éditeur' },
+    kind: { property: 'Bien', vehicle: 'Véhicule' },
+  },
+
+  home: {
+    heroEyebrow: 'Béjaïa & sa région',
+    heroTitle: 'Trouvez le bien qui vous ressemble.',
+    heroSubtitle:
+      'Location annuelle, meublés de courte durée, vente et location de véhicules. Chaque annonce est vérifiée par notre équipe avant publication.',
+    // Subtitle while no vehicle is offered publicly at all.
+    heroSubtitleRealEstate:
+      'Location annuelle, meublés de courte durée, vente et achat de biens immobiliers. Chaque annonce est vérifiée par notre équipe avant publication.',
+    heroEyebrowRealEstate: 'Immobilier à Béjaïa & sa région',
+    heroEyebrowVehicles: 'Béjaïa & sa région',
+    logoTagline: 'Immobilier & Véhicules',
+    logoTaglineRealEstate: 'Agence immobilière',
+    heroCtaPrimary: 'Explorer les biens',
+    heroCtaSecondary: 'Louer un véhicule',
+    // Secondary CTA when the agency sells vehicles but does not rent them.
+    heroCtaVehicleSales: 'Véhicules à vendre',
+    searchTitle: 'Recherche rapide',
+    searchTransaction: 'Type de transaction',
+    searchCategory: 'Type de bien',
+    searchCommune: 'Commune',
+    searchBudget: 'Budget maximum',
+    searchSubmit: 'Rechercher',
+    statsTitle: 'L’agence en chiffres',
+    statsPublishedProperties: 'Biens publiés',
+    statsPublishedVehicles: 'Véhicules publiés',
+    statsCommunes: 'Communes couvertes',
+    statsAvailableNow: 'Disponibles immédiatement',
+    statsEmpty: 'Les statistiques s’affichent dès la publication des premières annonces.',
+    featuredProperties: 'Biens à la une',
+    featuredPropertiesSub: 'Une sélection de biens vérifiés, disponibles immédiatement.',
+    featuredVehicles: 'Véhicules à la une',
+    featuredVehiclesSub: 'Des véhicules révisés, prêts pour la route.',
+    // Shown when the agency sells vehicles but does not rent them.
+    featuredVehicleSales: 'Véhicules à vendre à la une',
+    featuredVehicleSalesSub: 'Une sélection de véhicules disponibles à la vente.',
+    noFeaturedProperties: 'Aucun bien publié pour le moment.',
+    noFeaturedPropertiesSub: 'Les premières annonces apparaîtront ici dès leur publication.',
+    noFeaturedVehicles: 'Aucun véhicule publié pour le moment.',
+    noFeaturedVehiclesSub: 'Les premiers véhicules apparaîtront ici dès leur publication.',
+    servicesTitle: 'Nos services',
+    servicesSub: 'De la recherche à la remise des clés, un interlocuteur unique.',
+    aboutTitle: 'Notre approche',
+    contactTitle: 'Parlons de votre projet',
+    contactSub:
+      'Décrivez votre besoin : nous revenons vers vous avec des propositions réellement disponibles.',
+    areasTitle: 'Où nous intervenons',
+    whyTitle: 'Pourquoi RAYANE AFFAIRE',
+  },
+
+  properties: {
+    title: 'Biens immobiliers',
+    subtitle: 'Appartements, villas, locaux et terrains à Béjaïa et dans sa région.',
+    filtersTitle: 'Filtrer les biens',
+    transaction: 'Transaction',
+    category: 'Type de bien',
+    commune: 'Commune',
+    minPrice: 'Prix minimum',
+    maxPrice: 'Prix maximum',
+    bedrooms: 'Chambres',
+    surfaceMin: 'Surface min. (m²)',
+    furnishing: 'Ameublement',
+    availableOnly: 'Disponibles uniquement',
+    detail: {
+      description: 'Description',
+      characteristics: 'Caractéristiques',
+      surface: 'Surface',
+      bedrooms: 'Chambres',
+      bathrooms: 'Salles de bain',
+      floor: 'Étage',
+      furnishing: 'Ameublement',
+      availability: 'Disponibilité',
+      availableFrom: 'Disponible à partir du',
+      amenities: 'Équipements',
+      location: 'Localisation',
+      address: 'Adresse',
+      commune: 'Commune',
+      video: 'Visite vidéo',
+      gallery: 'Galerie',
+      photos: 'photos',
+      noPhotos: 'Aucune photo publiée',
+      similar: 'Biens similaires',
+      reference: 'Référence',
+      updatedAt: 'Mise à jour le',
+      contactCta: 'Demander une visite',
+      callCta: 'Appeler l’agence',
+      whatsappCta: 'WhatsApp',
+      openMap: 'Ouvrir dans la carte',
+      approximateNotice:
+        'La position affichée est approximative : le bien se situe dans ce secteur, l’adresse exacte est communiquée lors de la prise de contact.',
+      communeNotice:
+        'Seule la commune est communiquée pour ce bien. Contactez-nous pour une localisation plus précise.',
+      pendingNotice:
+        'La position de ce bien est en cours de vérification et n’est pas encore affichée sur la carte.',
+    },
+  },
+
+  vehicles: {
+    title: 'Véhicules',
+    subtitle: 'Location et vente de véhicules à Béjaïa, avec ou sans chauffeur sur demande.',
+    // Used when the agency has no rental service: the catalogue is then a sale
+    // catalogue and must not advertise a rental offer that does not exist.
+    titleSaleOnly: 'Véhicules à vendre',
+    subtitleSaleOnly:
+      'Véhicules proposés à la vente à Béjaïa et dans les communes voisines.',
+    filtersTitle: 'Filtrer les véhicules',
+    category: 'Catégorie',
+    transmission: 'Boîte de vitesses',
+    fuel: 'Carburant',
+    seats: 'Places',
+    dealType: 'Offre',
+    detail: {
+      description: 'Description',
+      brand: 'Marque',
+      model: 'Modèle',
+      year: 'Année',
+      transmission: 'Boîte de vitesses',
+      fuel: 'Carburant',
+      seats: 'Places',
+      doors: 'Portes',
+      mileage: 'Kilométrage',
+      features: 'Équipements',
+      availability: 'Disponibilité',
+      rentalPrice: 'Prix de location',
+      salePrice: 'Prix de vente',
+      pickup: 'Lieu de prise en charge',
+      // Neutral label for a sale listing, where there is nothing to pick up.
+      location: 'Commune',
+      reserveCta: 'Réserver ce véhicule',
+      contactCta: 'Demander un devis',
+      similar: 'Véhicules similaires',
+    },
+  },
+
+  map: {
+    title: 'Carte des biens',
+    subtitle:
+      'Chaque marqueur représente un bien publié. Le niveau de précision de la position est indiqué pour chaque bien.',
+    legend: 'Légende',
+    propertiesOnMap: 'biens géolocalisés',
+    hiddenNotice:
+      'Certains biens ne figurent pas sur la carte car leur position reste à vérifier.',
+    popupDetails: 'Voir le bien',
+    loading: 'Chargement de la carte…',
+    error: 'La carte n’a pas pu être chargée.',
+    filterCommune: 'Filtrer par commune',
+    clusterLabel: 'biens dans ce secteur',
+    privacyNotice:
+      'Les adresses exactes des biens occupés ne sont pas publiées. La position affichée peut être volontairement décalée de quelques centaines de mètres.',
+  },
+
+  services: {
+    title: 'Nos services',
+    subtitle: 'Un accompagnement complet, du premier appel à la remise des clés.',
+    cta: 'Nous contacter',
+  },
+
+  about: {
+    title: 'À propos de RAYANE AFFAIRE',
+    subtitle: 'Une agence de proximité, ancrée dans la wilaya de Béjaïa.',
+    valuesTitle: 'Nos engagements',
+    coverageTitle: 'Notre couverture',
+    coverageSub: 'Communes dans lesquelles nous intervenons aujourd’hui.',
+  },
+
+  contact: {
+    title: 'Contact',
+    subtitle: 'Par téléphone, WhatsApp ou via le formulaire. Réponse sous 24 h ouvrées.',
+    phone: 'Téléphone',
+    whatsapp: 'WhatsApp',
+    email: 'E-mail',
+    address: 'Adresse',
+    hours: 'Horaires',
+    hoursValue: 'Dimanche – Jeudi, 8 h 30 – 17 h 00',
+    formTitle: 'Envoyer un message',
+    fullName: 'Nom complet',
+    phoneField: 'Téléphone',
+    emailField: 'E-mail',
+    subject: 'Sujet',
+    message: 'Message',
+    messagePlaceholder: 'Décrivez votre recherche, vos dates, votre budget…',
+    preferredChannel: 'Moyen de contact préféré',
+    submit: 'Envoyer la demande',
+    submitting: 'Envoi en cours…',
+    successTitle: 'Demande envoyée',
+    successBody: 'Merci, votre demande a bien été enregistrée. Nous vous contacterons rapidement.',
+    errorTitle: 'Envoi impossible',
+    errorBody: 'Votre demande n’a pas pu être enregistrée. Réessayez ou appelez-nous.',
+    contactPendingTitle: 'Coordonnées en cours de configuration',
+    contactPendingBody:
+      'Les coordonnées téléphoniques de l’agence ne sont pas encore renseignées sur cette plateforme. Utilisez le formulaire : votre demande est enregistrée et traitée.',
+    aboutProperty: 'Votre demande concerne',
+    reservationDates: 'Dates souhaitées',
+    startDate: 'Date d’arrivée',
+    endDate: 'Date de départ',
+  },
+
+  form: {
+    nameRequired: 'Veuillez indiquer votre nom complet.',
+    nameTooShort: 'Le nom doit contenir au moins 3 caractères.',
+    phoneRequired: 'Veuillez indiquer un numéro de téléphone.',
+    phoneInvalid: 'Numéro invalide. Exemple : 0550 12 34 56 ou +213 550 12 34 56.',
+    emailInvalid: 'Adresse e-mail invalide.',
+    messageRequired: 'Veuillez écrire un message.',
+    messageTooShort: 'Le message doit contenir au moins 10 caractères.',
+    messageTooLong: 'Le message ne doit pas dépasser 2 000 caractères.',
+    dateInvalid: 'Date invalide.',
+    endBeforeStart: 'La date de départ doit suivre la date d’arrivée.',
+    consent: 'J’accepte que mes coordonnées soient utilisées pour être recontacté.',
+    consentRequired: 'Votre accord est nécessaire pour traiter la demande.',
+    requiredFields: 'Veuillez corriger les champs signalés.',
+    rateLimited: 'Trop de demandes envoyées. Réessayez dans quelques minutes.',
+  },
+
+  empty: {
+    propertiesTitle: 'Aucun bien ne correspond à votre recherche',
+    propertiesBody: 'Élargissez les critères ou réinitialisez les filtres.',
+    vehiclesTitle: 'Aucun véhicule ne correspond à votre recherche',
+    vehiclesBody: 'Essayez une autre catégorie ou réinitialisez les filtres.',
+    vehiclesSaleTitle: 'Aucun véhicule à vendre pour le moment',
+    vehiclesSaleBody:
+      'Notre offre de véhicules à la vente est en cours de constitution. Contactez-nous pour connaître les disponibilités.',
+    catalogueTitle: 'Le catalogue est en préparation',
+    catalogueBody:
+      'Aucune annonce n’est encore publiée. Les biens et véhicules apparaîtront ici dès leur publication par l’agence.',
+    mapTitle: 'Aucun bien géolocalisé',
+    mapBody: 'Les biens apparaîtront sur la carte dès qu’une position vérifiée sera enregistrée.',
+  },
+
+  errors: {
+    notFoundTitle: 'Page introuvable',
+    notFoundBody: 'La page demandée n’existe pas ou a été déplacée.',
+    listingNotFoundTitle: 'Annonce introuvable',
+    listingNotFoundBody: 'Cette annonce n’existe pas, ou n’est plus publiée.',
+    serverTitle: 'Une erreur est survenue',
+    serverBody: 'Le service est momentanément indisponible. Réessayez dans quelques instants.',
+    backHome: 'Retour à l’accueil',
+    unauthorized: 'Accès refusé.',
+    forbidden: 'Vous n’avez pas les droits nécessaires.',
+  },
+
+  credits: {
+    title: 'Crédits et sources',
+    subtitle:
+      'Provenance des données, des images et des composants utilisés sur ce site.',
+    osmBody:
+      'Les fonds de carte et les contours administratifs proviennent d’OpenStreetMap, produits par sa communauté de contributeurs et distribués sous licence ODbL. Les coordonnées des communes affichées dans le site sont issues de ces données ; elles ne servent qu’à situer grossièrement une commune, jamais à localiser un bien précis.',
+    osmFix: 'Signaler une erreur sur la carte',
+    photosTitle: 'Photographies des annonces',
+    photosBody:
+      'Chaque photographie d’annonce est fournie par l’agence ou utilisée sous une licence vérifiée. Son auteur et sa licence sont enregistrés avec l’image et affichés sur la fiche concernée. Aucune image n’est présentée comme la photographie d’un bien précis sans que ce lien ne soit documenté.',
+    illustrationsTitle: 'Visuels de marque',
+    illustrationsBody:
+      'Les visuels affichés en l’absence de photographie sont des illustrations créées pour RAYANE AFFAIRE. Elles ne représentent aucun bien réel et portent la mention correspondante.',
+    dataTitle: 'Données du site',
+    dataBody:
+      'Les annonces, prix et disponibilités sont saisis et maintenus par l’agence. Une information qui n’a pas été vérifiée est signalée comme telle (par exemple une position approximative ou une commune non renseignée) plutôt que complétée par une valeur inventée.',
+  },
+
+  footer: {
+    tagline: 'Immobilier et véhicules dans la wilaya de Béjaïa.',
+    // Footer blurb while no vehicle is offered publicly.
+    taglineRealEstate: 'L’immobilier dans la wilaya de Béjaïa : vente, location et gestion.',
+    navigation: 'Navigation',
+    contact: 'Contact',
+    legal: 'Informations',
+    rights: 'Tous droits réservés.',
+    adminLink: 'Administration',
+    sitemapLink: 'Plan du site',
+    creditsLink: 'Crédits et sources',
+    coverage: 'Zone d’intervention',
+    followUs: 'Nous suivre',
+  },
+
+  auth: {
+    loginTitle: 'Connexion administration',
+    loginSubtitle: 'Cet espace est réservé aux gestionnaires de l’agence.',
+    email: 'Adresse e-mail',
+    password: 'Mot de passe',
+    submit: 'Se connecter',
+    submitting: 'Connexion…',
+    logout: 'Se déconnecter',
+    invalidCredentials: 'Identifiants incorrects.',
+    tooManyAttempts: 'Trop de tentatives. Réessayez dans quelques minutes.',
+    accountDisabled: 'Ce compte est désactivé.',
+    sessionExpired: 'Votre session a expiré. Reconnectez-vous.',
+    notConfiguredTitle: 'Administration non initialisée',
+    notConfiguredBody:
+      'Aucun compte administrateur n’existe encore. Créez-en un avec la commande « npm run db:seed:admin » puis reconnectez-vous.',
+  },
+
+  admin: {
+    /** Sidebar labels. Kept under `nav` so they never collide with the
+     *  section namespaces (`finances`, `settings`, …) declared below. */
+    nav: {
+      dashboard: 'Tableau de bord',
+      properties: 'Biens',
+      vehicles: 'Véhicules',
+      inquiries: 'Demandes',
+      customers: 'Clients',
+      reservations: 'Réservations',
+      calendar: 'Calendrier',
+      finances: 'Finances',
+      settings: 'Paramètres',
+    },
+    overview: 'Vue d’ensemble',
+    newProperty: 'Nouveau bien',
+    newVehicle: 'Nouveau véhicule',
+    edit: 'Modifier',
+    delete: 'Supprimer',
+    confirmDelete: 'Confirmer la suppression',
+    confirmDeleteBody: 'Cette action est définitive. Voulez-vous continuer ?',
+    cancel: 'Annuler',
+    save: 'Enregistrer',
+    saving: 'Enregistrement…',
+    saved: 'Enregistré',
+    publish: 'Publier',
+    unpublish: 'Dépublier',
+    archive: 'Archiver',
+    restore: 'Restaurer',
+    create: 'Créer',
+    search: 'Rechercher',
+    kpi: {
+      publishedProperties: 'Biens publiés',
+      draftProperties: 'Biens en brouillon',
+      publishedVehicles: 'Véhicules publiés',
+      newInquiries: 'Demandes à traiter',
+      upcomingReservations: 'Réservations à venir',
+      monthlyRevenue: 'Revenus du mois',
+      totalRevenue: 'Revenus encaissés',
+      activeCustomers: 'Clients enregistrés',
+      availableNow: 'Disponibles immédiatement',
+      withoutCoordinates: 'Sans position vérifiée',
+    },
+    empty: {
+      properties: 'Aucun bien enregistré. Créez votre premier bien.',
+      vehicles: 'Aucun véhicule enregistré.',
+      inquiries: 'Aucune demande pour le moment.',
+      customers: 'Aucun client enregistré.',
+      reservations: 'Aucune réservation enregistrée.',
+      calendar: 'Aucune réservation sur la période.',
+      finances: 'Aucune transaction enregistrée pour cette période.',
+    },
+    hint: {
+      zeroIsReal:
+        'Toutes les valeurs de ce tableau de bord proviennent de la base de données. Un zéro signifie qu’il n’y a encore aucune donnée, jamais une valeur fictive.',
+      withoutCoordinates:
+        'Ces annonces publiées n’ont pas de position vérifiée et n’apparaissent donc pas sur la carte publique.',
+    },
+    table: {
+      reference: 'Référence',
+      title: 'Titre',
+      status: 'Statut',
+      price: 'Prix',
+      commune: 'Commune',
+      updatedAt: 'Mise à jour',
+      actions: 'Actions',
+      name: 'Nom',
+      phone: 'Téléphone',
+      type: 'Type',
+      dates: 'Dates',
+      amount: 'Montant',
+      customer: 'Client',
+      item: 'Annonce',
+    },
+    form: {
+      identity: 'Identité de l’annonce',
+      titleFr: 'Titre (français)',
+      titleAr: 'Titre (arabe)',
+      descriptionFr: 'Description (français)',
+      descriptionAr: 'Description (arabe)',
+      reference: 'Référence',
+      category: 'Catégorie',
+      transaction: 'Transaction',
+      price: 'Prix (DA)',
+      commune: 'Commune',
+      addressFr: 'Adresse (français)',
+      addressAr: 'Adresse (arabe)',
+      surface: 'Surface (m²)',
+      bedrooms: 'Chambres',
+      bathrooms: 'Salles de bain',
+      floor: 'Étage',
+      furnishing: 'Ameublement',
+      availability: 'Disponibilité',
+      availableFrom: 'Disponible à partir du',
+      features: 'Équipements & détails',
+      location: 'Localisation',
+      latitude: 'Latitude',
+      longitude: 'Longitude',
+      precision: 'Précision de la position',
+      featured: 'Mettre à la une',
+      media: 'Photographies',
+      uploadHint: 'JPEG, PNG ou WebP — 5 Mo maximum par image.',
+      noMedia: 'Aucune photo. Ajoutez au moins une photographie avant publication.',
+      brand: 'Marque',
+      model: 'Modèle',
+      year: 'Année',
+      transmission: 'Boîte',
+      fuel: 'Carburant',
+      seats: 'Places',
+      doors: 'Portes',
+      mileage: 'Kilométrage',
+      dealType: 'Offre',
+      dailyPrice: 'Prix location / jour (DA)',
+      salePrice: 'Prix de vente (DA)',
+      publishNow: 'Publier immédiatement',
+    },
+    validation: {
+      titleRequired: 'Le titre est obligatoire dans les deux langues.',
+      priceRequired: 'Le prix doit être supérieur à zéro.',
+      communeRequired: 'Sélectionnez une commune.',
+      referenceTaken: 'Cette référence est déjà utilisée.',
+      slugTaken: 'Ce lien est déjà utilisé.',
+      invalidCoordinate: 'Coordonnées invalides (latitude −90…90, longitude −180…180).',
+      mediaRequiredForPublish:
+        'Impossible de publier : ajoutez au moins une photographie.',
+      coordinatesRequiredForPublish:
+        'Impossible de publier sur la carte : renseignez une position vérifiée.',
+      altRequired:
+        'Renseignez le texte alternatif de la photo en français et en arabe.',
+      attributionRequired:
+        'Renseignez le crédit (auteur) et la licence de la photo : une image sans droits documentés ne peut pas être publiée.',
+      invalidSetting: 'Ce réglage est inconnu ou possède une valeur invalide.',
+    },
+    inquiry: {
+      detail: 'Détail de la demande',
+      updateStatus: 'Mettre à jour le statut',
+      notes: 'Notes internes',
+      markSpam: 'Marquer comme indésirable',
+      relatedListing: 'Annonce concernée',
+      noRelated: 'Demande générale',
+      createdAt: 'Reçue le',
+    },
+    finances: {
+      period: 'Période',
+      thisMonth: 'Ce mois',
+      lastMonth: 'Mois dernier',
+      thisYear: 'Cette année',
+      all: 'Tout',
+      revenue: 'Revenus',
+      deposits: 'Acomptes',
+      count: 'Réservations',
+      byKind: 'Répartition',
+      note: 'Les montants correspondent aux réservations confirmées ou terminées sur la période.',
+    },
+    settings: {
+      title: 'Paramètres',
+      brand: 'Identité',
+      brandNote:
+        'Le nom, les couleurs et les coordonnées sont configurables par variables d’environnement.',
+      contact: 'Coordonnées publiées',
+      contactPending: 'Non renseignées — le site affiche une notice à la place.',
+      communes: 'Communes actives',
+      communesNote: 'Les communes sont gérées en base et utilisées par les filtres publics.',
+      account: 'Mon compte',
+      environment: 'Environnement',
+      dbPath: 'Base de données',
+      demoRecords: 'Annonces de démonstration',
+      demoRecordsNote:
+        'Les annonces de démonstration sont identifiées dans l’interface publique et exclues des statistiques.',
+      vehiclePublicVisible: {
+        title: 'Section véhicules sur le site public',
+        body:
+          'Interrupteur principal. Désactivé, le site public ne montre plus rien des véhicules : ni menu, ni catalogue, ni fiche, ni chiffre, ni plan du site, ni métadonnée. Les URL véhicules répondent 404. La gestion des véhicules dans le back-office reste entièrement fonctionnelle : aucune annonce n’est supprimée.',
+        on: 'Section véhicules publique',
+        off: 'Section véhicules masquée',
+        onHint: 'Les visiteurs voient la section véhicules sur le site public.',
+        offHint:
+          'Le site public n’expose aucun véhicule. Le back-office conserve tout l’inventaire et permet de le gérer normalement.',
+        note:
+          'Réactiver cette option restaure la section telle qu’elle était : aucune donnée n’est perdue, aucune migration n’est nécessaire.',
+      },
+      vehicleRental: {
+        title: 'Location de véhicules',
+        body:
+          'S’applique uniquement lorsque la section véhicules est publique. Désactivée, l’option retire les annonces et les actions de location mais conserve la vente : le menu affiche « Véhicules à vendre », et le catalogue, la une, les statistiques et le plan du site continuent d’exposer les véhicules à vendre.',
+        on: 'Location activée',
+        off: 'Location désactivée',
+        onHint: 'Les véhicules à louer sont visibles sur le site public.',
+        offHint:
+          'Seuls les véhicules à vendre restent visibles. Les annonces de location sont masquées, sans être supprimées.',
+        note:
+          'Sans effet tant que la section véhicules est masquée : réglage secondaire, il ne peut pas rendre visible une section cachée.',
+      },
+    },
+    seedWarning:
+      'Les données de démonstration sont clairement identifiées et ne sont jamais présentées comme des biens réels.',
+  },
+} as const;
+
+/**
+ * Widens literal types to `string` while preserving the exact key structure.
+ * `ar.ts` is typed as `Dictionary`, so an added French key without an Arabic
+ * translation becomes a `typecheck` failure — the guarantee that the language
+ * switch covers the whole product.
+ */
+type Widen<T> = T extends string
+  ? string
+  : T extends ReadonlyArray<infer U>
+    ? Widen<U>[]
+    : { -readonly [K in keyof T]: Widen<T[K]> };
+
+export type Dictionary = Widen<typeof fr>;

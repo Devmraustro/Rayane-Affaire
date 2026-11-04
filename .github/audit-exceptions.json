@@ -1,0 +1,20 @@
+{
+  "$comment": "Time-boxed exceptions to the dependency-audit gate. Every entry names one production package, why the advisory is not exploitable in this application today, and when the exception stops being accepted. An expired exception fails the build, so this file cannot quietly become permanent. Additions require a review.",
+  "exceptions": [
+    {
+      "package": "postcss",
+      "severity": [
+        "high",
+        "moderate"
+      ],
+      "reason": "Vulnerable copy ships inside next@15 (next/node_modules/postcss@8.4.31, pinned exactly by Next and not adjustable through npm overrides). PostCSS is used at build time to process our own stylesheet; the application never runs PostCSS over user-supplied CSS, never builds CSS from request data, and never exposes a PostCSS endpoint. The advisory is therefore not reachable from the deployed runtime. Remediation is the Next 16 major upgrade, which needs its own verified migration and is tracked in docs/OPENCODE_HANDOFF.md.",
+      "advisories": [
+        "GHSA-qx2v-qp2m-jg93",
+        "GHSA-6g55-p6wh-862q",
+        "GHSA-fxqj-rqcc-2cmp",
+        "GHSA-r28c-9q8g-f849"
+      ],
+      "expires": "2027-03-31"
+    }
+  ]
+}
