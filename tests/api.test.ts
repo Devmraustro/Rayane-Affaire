@@ -487,15 +487,36 @@ describe('property CRUD over HTTP', () => {
   });
 });
 
+/** A minimal but structurally valid PNG (1x1). CRCs are not verified by the
+ *  sanitiser, but the chunk structure must be real — a signature followed by
+ *  garbage is now refused, which is the point of validating uploads. */
+function validPng(withMetadata = false): Uint8Array<ArrayBuffer> {
+  const chunk = (type: string, data: Buffer): Buffer => {
+    const length = Buffer.alloc(4);
+    length.writeUInt32BE(data.length, 0);
+    return Buffer.concat([length, Buffer.from(type, 'latin1'), data, Buffer.alloc(4)]);
+  };
+  const signature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  const parts = [
+    signature,
+    chunk('IHDR', Buffer.from([0, 0, 0, 1, 0, 0, 0, 1, 8, 2, 0, 0, 0])),
+  ];
+  if (withMetadata) parts.push(chunk('tEXt', Buffer.from('GPS\0 36.7511783', 'latin1')));
+  parts.push(chunk('IDAT', Buffer.from([1, 2, 3, 4])), chunk('IEND', Buffer.alloc(0)));
+  const joined = Buffer.concat(parts);
+  // Copy into a plain ArrayBuffer-backed view so it satisfies `BlobPart`.
+  const out = new Uint8Array(joined.length);
+  out.set(joined);
+  return out;
+}
+
 describe('media upload rules', () => {
   async function uploadAs(
     listingId: string,
     fields: Record<string, string>,
   ): Promise<Response> {
     const { POST } = await import('@/app/api/admin/media/route');
-    const png = new Uint8Array([
-      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4, 5, 6, 7, 8,
-    ]);
+    const png = validPng();
     const form = new FormData();
     form.set('entityType', 'property');
     form.set('entityId', listingId);

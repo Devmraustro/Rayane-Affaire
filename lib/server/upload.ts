@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync, unlinkSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { UPLOAD } from '@/lib/config';
+import { stripImageMetadata, MetadataStripError } from './image-sanitize';
 
 /**
  * Image upload handling.
@@ -16,6 +17,9 @@ import { UPLOAD } from '@/lib/config';
  *    produce an executable extension.
  *  * Files are written under `data/uploads` (git-ignored) and served by a route
  *    handler that sets `Content-Type` from the detected type, not the request.
+ *  * Embedded metadata is stripped before the file is written, so a phone photo
+ *    cannot publish the GPS coordinates of a private address. A file whose
+ *    metadata cannot be removed is refused rather than stored.
  */
 
 export type DetectedType = 'image/jpeg' | 'image/png' | 'image/webp' | 'image/avif';
@@ -74,7 +78,7 @@ export function uploadsDirectory(): string {
  */
 export class UploadError extends Error {
   constructor(
-    public code: 'TOO_LARGE' | 'UNSUPPORTED_TYPE' | 'EMPTY',
+    public code: 'TOO_LARGE' | 'UNSUPPORTED_TYPE' | 'EMPTY' | 'UNSTRIPPABLE_METADATA',
     message: string,
   ) {
     super(message);
@@ -96,16 +100,29 @@ export async function storeImage(file: File): Promise<StoredUpload> {
     throw new UploadError('UNSUPPORTED_TYPE', 'Only JPEG, PNG, WebP or AVIF images are accepted.');
   }
 
+  // Strip before writing: nothing unsanitised must ever touch the disk, because
+  // a partially-written file is exactly what a later request could serve.
+  let clean: Uint8Array;
+  try {
+    clean = stripImageMetadata(buffer, detected.type).bytes;
+  } catch (error) {
+    if (error instanceof MetadataStripError) {
+      throw new UploadError('UNSTRIPPABLE_METADATA', error.message);
+    }
+    // Any unexpected parsing failure is treated the same way: refuse the file.
+    throw new UploadError('UNSTRIPPABLE_METADATA', 'The image could not be sanitised.');
+  }
+
   const dir = uploadsDirectory();
   mkdirSync(dir, { recursive: true });
   const id = randomUUID();
   const filename = `${id}.${detected.extension}`;
-  writeFileSync(join(dir, filename), buffer);
+  writeFileSync(join(dir, filename), clean);
 
   return {
     url: `/api/media/${filename}`,
     id,
-    bytes: buffer.byteLength,
+    bytes: clean.byteLength,
     type: detected.type,
   };
 }

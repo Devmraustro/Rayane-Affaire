@@ -157,6 +157,26 @@ describe('rate limiting', () => {
   });
 });
 
+/** Minimal but structurally valid PNG: the sanitiser validates chunk structure,
+ *  so the old "signature + zero padding" fixture is (correctly) refused now. */
+function validPng(): Uint8Array<ArrayBuffer> {
+  const chunk = (type: string, data: Buffer): Buffer => {
+    const length = Buffer.alloc(4);
+    length.writeUInt32BE(data.length, 0);
+    return Buffer.concat([length, Buffer.from(type, 'latin1'), data, Buffer.alloc(4)]);
+  };
+  const joined = Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', Buffer.from([0, 0, 0, 1, 0, 0, 0, 1, 8, 2, 0, 0, 0])),
+    chunk('IDAT', Buffer.from([1, 2, 3, 4])),
+    chunk('IEND', Buffer.alloc(0)),
+  ]);
+  // Copy into a plain ArrayBuffer-backed view so it satisfies `BlobPart`.
+  const out = new Uint8Array(joined.length);
+  out.set(joined);
+  return out;
+}
+
 describe('upload MIME sniffing', () => {
   const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13]);
   const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46, 0x49, 0x46, 0, 1]);
@@ -190,13 +210,22 @@ describe('upload MIME sniffing', () => {
 
   it('stores a real PNG and returns a UUID-based path', async () => {
     const { storeImage, removeStoredFile } = await import('@/lib/server/upload');
-    const file = new File([new Uint8Array([...png, ...new Uint8Array(64)])], 'photo.png', {
+    const file = new File([validPng()], 'photo.png', {
       type: 'image/png',
     });
     const stored = await storeImage(file);
     expect(stored.url).toMatch(/^\/api\/media\/[a-f0-9-]{36}\.png$/);
     expect(stored.type).toBe('image/png');
     expect(removeStoredFile(stored.url)).toBe(true);
+  });
+
+  it('refuses a file whose magic bytes are right but whose structure is garbage', async () => {
+    // Before metadata stripping this passed sniffing. A signature followed by
+    // junk is not an image, and it must not reach the disk.
+    const { storeImage } = await import('@/lib/server/upload');
+    const fake = new File([png], 'fake.png', { type: 'image/png' });
+    // The API maps this code to 415, so the client gets an honest refusal.
+    await expect(storeImage(fake)).rejects.toMatchObject({ code: 'UNSTRIPPABLE_METADATA' });
   });
 
   it('refuses an oversized file', async () => {

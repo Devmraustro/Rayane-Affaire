@@ -1,0 +1,117 @@
+name: CI
+
+# Continuous integration for the only quality gate this project has.
+#
+# The quality stages mirror the local typecheck/lint/test/build commands, and the
+# audit gate is the same script used locally. No CI-only build bypasses are used.
+# The workflow never deploys: publishing is a separate, owner-controlled step.
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+# A newer push to the same branch makes the previous run pointless.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Typecheck · lint · unit · build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      # Build-time configuration only. No secret is required to compile, and none
+      # is stored in the repository — the app reads its secrets from the host.
+      NODE_ENV: test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          # Matches the toolchain used locally (Node 22 ships `node:sqlite`,
+          # which the database layer requires).
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        # `npm ci` installs strictly from package-lock.json: no dependency drift.
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Database migrations (from scratch)
+        # Proves the migrations run on an empty database, which is what a new
+        # environment does. The tests below then run against a migrated schema.
+        run: npm run db:migrate
+        env:
+          DATABASE_PATH: ./data/ci.db
+
+      - name: Unit and integration tests
+        run: npm run test
+        env:
+          DATABASE_PATH: ./data/ci.db
+
+      - name: Production build
+        run: npm run build
+        env:
+          DATABASE_PATH: ./data/ci.db
+
+  security:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Report dependency advisories
+        # Report the complete dependency tree, including test/build tooling.
+        # The audit gate below decides whether high/critical findings block.
+        run: npm audit || true
+
+      - name: Audit gate
+        # Blocks on any high/critical advisory in the full dependency tree unless
+        # it is covered by a reasoned, unexpired entry in
+        # .github/audit-exceptions.json. An expired entry fails the build, so the
+        # exception list cannot become a permanent mute.
+        run: node scripts/audit-gate.mjs
+
+      - name: Reject committed secrets and environment files
+        # Cheap and specific: .env files and the SQLite database must never be
+        # tracked, because either one can carry credentials or client data.
+        run: |
+          set -eu
+          tracked_env="$(git ls-files -- '.env' '.env.*' | grep -v '^\.env\.example$' || true)"
+          if [ -n "$tracked_env" ]; then
+            echo "::error::A secret .env file is tracked in git: $tracked_env"
+            exit 1
+          fi
+          if git ls-files 'data/*.db' 'data/*.db-*' | grep -q .; then
+            echo "::error::A SQLite database is tracked in git."
+            exit 1
+          fi
+          echo "No secret .env file or database is committed."
