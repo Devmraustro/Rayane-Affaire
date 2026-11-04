@@ -256,7 +256,7 @@ Vitest 5.1.0). Résultats détaillés : `docs/TESTING_REPORT.md`.
 | `npm run build` | compilation réussie ; 19/19 pages statiques générées ; routes dynamiques servies à la demande ; JS partagé 103 kB |
 | `npm run audit:gate` | 1 high (postcss) couvert par exception datée ; 0 high/critical non accepté |
 | `npm run smoke -- http://127.0.0.1:3100` | **17/17** en section cachée et **17/17** après activation publique, sans redémarrage |
-| GitHub Actions | workflow ajouté ; un résultat n'est revendiqué que si `gh run list` le confirme |
+| GitHub Actions | runs `41883710180` (push) et `41883722087` (pull request) **réussis** sur `59649d7` ; vérifier les checks du head courant après toute nouvelle mise à jour |
 
 Un parcours de connexion et de CRUD admin par HTTP avait aussi été vérifié dans
 la passe précédente : `/admin` renvoie 307 sans session, les routes admin sont
@@ -280,7 +280,7 @@ un upload attribué peut être publié. Les tests d'API couvrent ces règles.
 | Tests de bout en bout navigateur (E2E) | Pas de navigateur disponible |
 | Audit d'intrusion externe | Hors périmètre |
 | Upgrade Next 16 / suppression définitive du postcss high | Migration majeure à planifier ; exception `.github/audit-exceptions.json` expire le 31 mars 2027 |
-| Vérification du workflow sur GitHub Actions | Le workflow est ajouté ; le résultat distant doit être vérifié séparément après push |
+| Vérification du workflow sur GitHub Actions | Runs `41883710180` (push) et `41883722087` (pull request) réussis sur `59649d7` ; vérifier le head courant après toute nouvelle mise à jour |
 
 La suite est organisée par nature de blocage dans `docs/OPENCODE_HANDOFF.md`.
 

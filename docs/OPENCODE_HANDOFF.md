@@ -24,7 +24,10 @@ never point it at data that must be kept.
 
 Latest local result at this revision: typecheck 0 errors · lint clean · **215
 tests passing in 9 files** · build succeeds · smoke **17/17** in both hidden and
-public states. This is not a GitHub Actions run.
+public states. Separately, GitHub Actions push run `41883710180` and pull-request
+run `41883722087` both passed on commit `59649d7` on 4 November 2026 (quality/build
+and dependency-audit jobs). For any later push, verify the latest head's checks
+rather than inferring CI status from these earlier runs. No deployment was run.
 
 ---
 

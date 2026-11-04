@@ -1,9 +1,9 @@
 # Rapport de tests
 
 **Dernière vérification locale : 4 novembre 2026** (Node.js 22.22.3, Linux,
-Next.js 15.5.28). Les valeurs ci-dessous viennent de commandes exécutées dans le
-dépôt, pas d'une estimation. Il s'agit de tests locaux : **aucun résultat de CI
-GitHub n'est revendiqué**, et aucun déploiement n'a été effectué.
+Next.js 15.5.28). Les résultats locaux ci-dessous proviennent de commandes
+exécutées dans le dépôt. La ligne GitHub Actions repose sur les runs distants
+cités plus bas ; aucun déploiement n'a été effectué.
 
 ---
 
@@ -20,7 +20,8 @@ GitHub n'est revendiqué**, et aucun déploiement n'a été effectué.
 | Audit de toutes les dépendances | `npm audit` — **20 avis** : 19 modérés, 1 élevé, 0 critique. `npm run audit:gate` accepte uniquement l'avis high postcss, avec exception datée au 31 mars 2027 ; 0 high/critical non accepté. `npm audit --omit=dev` rapporte 2 avis (postcss high, Next moderate). Voir `docs/SECURITY_AUDIT.md` §10. |
 | Smoke HTTP sur build de production | **17/17** section véhicules masquée, puis **17/17** section publique après bascule en base, sans redémarrer le serveur |
 | Navigateur/E2E | **Non exécutés** : aucun navigateur installé, donc aucun contrôle visuel, responsive ou E2E revendiqué |
-| CI GitHub / déploiement | **Non exécutés / non effectués** au moment de ce rapport |
+| GitHub Actions | Les exécutions `push` et `pull_request` ont passé sur la branche : jobs `quality` et `security` réussis ; voir les checks de la PR #1 pour l'état du head courant. |
+| Déploiement | **Non effectué** ; aucune publication ni déploiement lancé depuis cette tâche. |
 
 La commande `npm run lint` affiche également l'avertissement de maintenance de
 Next : `next lint` sera retiré en Next.js 16. Cela ne produit actuellement aucune
@@ -99,9 +100,10 @@ base de production. Le test HTTP n'est pas un test visuel : aucun navigateur n'a
   ni de test d'intrusion externe.
 - Les photographies, coordonnées, horaires, coordonnées professionnelles et
   inventaire réels restent à confirmer/fournir par le client.
-- Le pipeline est défini dans `.github/workflows/ci.yml`, mais un passage local
-  ne constitue pas un passage GitHub. Vérifier `gh run list` avant toute
-  déclaration sur l'état de CI.
+- Le pipeline `.github/workflows/ci.yml` a passé les jobs `quality` et
+  `security` sur push et sur pull request (4 novembre 2026). Un passage local ne
+  remplace pas le contrôle du head courant : vérifier `gh run list` et les checks
+  de la PR avant toute déclaration ultérieure.
 
 ---
 

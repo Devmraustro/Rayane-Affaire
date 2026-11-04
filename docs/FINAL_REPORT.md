@@ -77,10 +77,11 @@ Aucune bibliothèque image native n'a été ajoutée.
 
 ## E. Données et exactitude
 
-- Aucune annonce réelle, photo client, coordonnée réelle d'annonce, information
-  de contact, client ou réservation n'a été inventée ou publiée. Les positions
-  du seed optionnel sont illustratives, balisées et non attribuées à un bien
-  réel.
+- Aucune annonce réelle, photo client, information de contact, donnée client ou
+  réservation n'a été inventée ou publiée. Par ailleurs,
+  **aucune coordonnée d'annonce réelle** n'a été inventée ou publiée. Les
+  positions du seed optionnel sont illustratives, balisées et non attribuées à
+  un bien réel.
 - Les 11 communes présentes sont issues de relations OpenStreetMap ; leurs
   centroïdes servent à décrire les communes, **jamais à inventer l'emplacement
   d'un bien**. 42 communes restent à confirmer/ajouter sur le référentiel de 53.
@@ -125,15 +126,18 @@ ne pas laisser croire qu'il avait corrigé le problème. Une entrée explicite d
 **31 mars 2027**. C'est une exception temporaire, **pas un correctif** ; le
 remède planifié est une migration Next 16 vérifiée.
 
-Le nouveau workflow `.github/workflows/ci.yml` exécute installation, typecheck,
-lint, migration, tests, build, audit du graphe complet et contrôle des fichiers
-secrets/DB. `scripts/audit-gate.mjs` bloque les avis high/critical sans exception
-valide ; des essais ont vérifié qu'une exception expirée, hors package, sans
-raison, avec mauvais GHSA, ou un rapport npm incomplet échoue en fermé.
+Le workflow `.github/workflows/ci.yml` exécute installation, typecheck, lint,
+migration, tests, build, audit du graphe complet et contrôle des fichiers
+secrets/DB. Il utilise le runner `ubuntu-24.04`, `actions/checkout@v7` et
+`actions/setup-node@v7` avec Node 22 pour le projet. `scripts/audit-gate.mjs`
+bloque les avis high/critical sans exception valide ; des essais ont vérifié
+qu'une exception expirée, hors package, sans raison, avec mauvais GHSA, ou un
+rapport npm incomplet échoue en fermé.
 
-Les commandes CI ont été reproduites localement. **Un passage local n'est pas un
-passage GitHub Actions** : vérifier l'exécution distante avec `gh run list` après
-push et ne déclarer son résultat qu'après lecture des checks.
+GitHub Actions a confirmé le workflow sur push et pull request : les runs
+`41883710180` et `41883722087` ont tous deux réussi sur le commit `59649d7` le
+4 novembre 2026 (jobs qualité/build et audit des dépendances). Vérifier les
+checks après toute nouvelle mise à jour pour confirmer le head courant.
 
 ## H. État du projet
 

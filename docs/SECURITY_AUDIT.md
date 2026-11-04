@@ -171,8 +171,10 @@ qui correspondent aux avis constatés et une date ISO valide non expirée. Tests
 manuels du gate : exception courante acceptée ; exception expirée, package sans
 rapport, raison absente et identifiant d'avis erroné bloqués.
 
-Le workflow a été vérifié localement, **pas encore par GitHub Actions à la date
-de ce rapport**. Consulter `gh run list` avant de qualifier un état de CI.
+Le workflow a aussi été exécuté par GitHub Actions : les runs `41883710180`
+(`push`) et `41883722087` (`pull_request`) ont tous deux réussi sur le commit
+`59649d7` le 4 novembre 2026, avec les jobs qualité et sécurité. Aucun déploiement
+n'a été lancé. Vérifier `gh run list` pour le statut du head courant.
 
 ---
 
