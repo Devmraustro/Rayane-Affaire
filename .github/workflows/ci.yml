@@ -23,7 +23,7 @@ permissions:
 jobs:
   quality:
     name: Typecheck · lint · unit · build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
 
     env:
@@ -33,13 +33,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          # Matches the toolchain used locally (Node 22 ships `node:sqlite`,
-          # which the database layer requires).
+          # Node 22 is the tested project runtime and provides `node:sqlite`.
           node-version: '22'
           cache: 'npm'
 
@@ -72,15 +71,15 @@ jobs:
 
   security:
     name: Dependency audit
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'npm'
