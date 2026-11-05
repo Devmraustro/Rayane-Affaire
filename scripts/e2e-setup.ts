@@ -17,8 +17,8 @@ seedCommunes(db);
 const now = new Date().toISOString();
 const defaults: Array<[string, string]> = [
   ['site_name_fr', 'Rayane Affaire'], ['site_name_ar', 'ريان أفير'],
-  ['contact_email', 'e2e@rayane-affaire.invalid'], ['contact_phone', '+213 555 000 000'],
-  ['whatsapp', '+213555000000'], ['address_fr', 'Béjaïa, Algérie'], ['address_ar', 'بجاية، الجزائر'],
+  ['contact_email', ''], ['contact_phone', ''],
+  ['whatsapp', ''], ['address_fr', ''], ['address_ar', ''],
   ['google_maps_embed', ''], ['facebook_url', ''], ['instagram_url', ''], ['tiktok_url', ''],
   ['vehicle_rental_enabled', 'false'], ['vehicle_public_visible', 'false'],
 ];

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ar } from '@/lib/i18n/dictionaries/ar';
 import { fr } from '@/lib/i18n/dictionaries/fr';
 import { dirFor, isLocale, resolveLocale, bcp47 } from '@/lib/i18n/locale';
+import { BRAND } from '@/lib/brand';
 
 /**
  * i18n completeness.
@@ -169,5 +170,11 @@ describe('label completeness', () => {
         expect(locale.labels.role[key]).toBeTruthy();
       }
     }
+  });
+});
+
+describe('unverified business facts', () => {
+  it('does not publish the previously unconfirmed 2024 founding year', () => {
+    expect(BRAND.establishedYear).toBeNull();
   });
 });

@@ -43,7 +43,9 @@ complexité maîtrisés, données en Europe/Algérie selon l'hébergeur choisi.
 
 ### 2.1 Preview Vercel jetable — limites strictes
 
-Le projet `rayane-affaire-preview` est distinct de toute production. Le bootstrap
+Le projet `rayane-affaire-preview` est distinct de toute production. **Il est
+créé mais non déployé au 5 novembre 2026** ; les étapes ci-dessous décrivent la
+cible technique, pas un service public déjà validé. Le bootstrap
 de `db/preview-bootstrap.ts` n'est exécuté que si **les deux** conditions suivantes
 sont réunies : `VERCEL_ENV=preview` et `PREVIEW_EPHEMERAL=1`. Il exige une base
 vide de biens, véhicules, lieux et clients, crée les 11 communes, les réglages et

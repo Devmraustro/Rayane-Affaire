@@ -71,8 +71,8 @@ export function applySchema(db: Db = getDb()): void {
   const additions: [string, string][] = [
     ['must_change_password', 'INTEGER NOT NULL DEFAULT 0 CHECK (must_change_password IN (0, 1))'],
     ['notification_email', 'TEXT'],
-    ['notify_new_inquiry', 'INTEGER NOT NULL DEFAULT 1 CHECK (notify_new_inquiry IN (0, 1))'],
-    ['notify_reservation', 'INTEGER NOT NULL DEFAULT 1 CHECK (notify_reservation IN (0, 1))'],
+    ['notify_new_inquiry', 'INTEGER NOT NULL DEFAULT 0 CHECK (notify_new_inquiry IN (0, 1))'],
+    ['notify_reservation', 'INTEGER NOT NULL DEFAULT 0 CHECK (notify_reservation IN (0, 1))'],
   ];
   for (const [name, definition] of additions) {
     if (!columns.has(name)) db.exec(`ALTER TABLE admin_users ADD COLUMN ${name} ${definition}`);

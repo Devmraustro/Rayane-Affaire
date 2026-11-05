@@ -4,6 +4,7 @@ import { HttpError, requireAdmin } from '@/lib/server/authz';
 import { credentialsFromRequest } from '@/lib/server/credentials';
 import { fail, isSameOrigin, ok } from '@/lib/server/api';
 import { recordAudit } from '@/lib/server/audit';
+import { emailDeliveryConfigured } from '@/lib/server/email';
 const schema = z.object({ notificationEmail: z.union([z.string().trim().toLowerCase().email().max(160), z.literal('')]), notifyNewInquiry: z.boolean(), notifyReservation: z.boolean() });
 export async function PATCH(request: Request): Promise<Response> {
   if (!isSameOrigin(request)) return fail('FORBIDDEN', 'Cross-origin request rejected.', 403);
@@ -12,5 +13,5 @@ export async function PATCH(request: Request): Promise<Response> {
   const parsed = schema.safeParse(body); if (!parsed.success) return fail('VALIDATION', 'Invalid notification preferences.', 422);
   const user = updateNotificationPreferences(session.user.id, { ...parsed.data, notificationEmail: parsed.data.notificationEmail || null });
   recordAudit(session, 'account.notifications', 'admin_user', session.user.id, { notifyNewInquiry: user.notifyNewInquiry, notifyReservation: user.notifyReservation });
-  return ok({ user, emailConfigured: process.env.EMAIL_DELIVERY === 'resend' });
+  return ok({ user, emailConfigured: emailDeliveryConfigured() });
 }

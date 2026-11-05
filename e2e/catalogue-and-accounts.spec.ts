@@ -145,6 +145,8 @@ test('owner creates account, first login forces password change, editor RBAC and
 
   await page.goto('/admin/notifications');
   const inquiry = page.locator('input[type="checkbox"]').first();
+  await expect(inquiry).not.toBeChecked();
+  await expect(page.locator('input[type="checkbox"]').nth(1)).not.toBeChecked();
   await inquiry.check();
   await expect(inquiry).toBeChecked();
   await page.getByRole('button', { name: 'Enregistrer les préférences', exact: true }).click();

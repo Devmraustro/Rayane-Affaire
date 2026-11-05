@@ -4,7 +4,7 @@ Moteur : **SQLite** (`node:sqlite`, Node ≥ 22.5), mode WAL, `PRAGMA foreign_ke
 Schéma de référence : `db/schema.sql`. Migration : `npm run db:migrate`.
 Chemin par défaut : `data/rayane.db` (surchargeable par `DATABASE_PATH`).
 
-**12 tables · 21 index · contraintes `CHECK` et `FOREIGN KEY` actives.**
+**15 tables (dont `schema_migrations`) · 28 index explicites · contraintes `CHECK` et `FOREIGN KEY` actives.**
 
 Conventions :
 
@@ -85,6 +85,24 @@ des coordonnées, donc impossible d'afficher un marqueur inventé.
 
 ---
 
+## 3A. `places` — lieux éditoriaux
+
+Créée par la migration 003. Colonnes : `id`, `slug`/`reference` uniques,
+`name_fr`/`name_ar`, descriptions et adresses bilingues, `commune_id` (RESTRICT),
+`category`, `lat`/`lng`, `coordinate_precision`
+(`exact|approximate|pending`), `location_status`
+(`missing|unverified|verified`), `verified_by`/`verified_at`, `status`,
+`is_demo`, `published_at`, `created_at`, `updated_at`.
+
+Les contraintes imposent une paire de coordonnées valide, un état cohérent avec
+leur présence et une date de vérification pour tout point `verified`. La création
+ou modification ne peut pas s'auto-vérifier : une action authentifiée séparée
+renseigne l'éditeur et la date. Toute modification du point invalide cette
+vérification. La publication exige une image côté application. La projection
+publique masque les coordonnées tant que le point n'est pas vérifié.
+
+---
+
 ## 3. `vehicles` — véhicules
 
 Colonnes principales : `slug`, `reference` (`RA-V-####`), `title_fr/ar`,
@@ -108,15 +126,15 @@ exige les deux.
 | Colonne | Type | Notes |
 | --- | --- | --- |
 | `id` | TEXT PK | UUID |
-| `entity_type` | TEXT | `property` `vehicle` |
+| `entity_type` | TEXT | `property` `vehicle` `place` |
 | `entity_id` | TEXT | identifiant de l'annonce |
 | `url` | TEXT NOT NULL | `/api/media/<uuid>.png` ou URL absolue |
-| `alt_fr`, `alt_ar` | TEXT NOT NULL | accessibilité bilingue (défaut fourni par le serveur si absent) |
+| `alt_fr`, `alt_ar` | TEXT NOT NULL | accessibilité bilingue ; le serveur exige les deux valeurs non vides |
 | `width`, `height` | INTEGER | |
-| `sort_order` | INTEGER | ordre de la galerie |
-| `credit` | TEXT NULL | auteur / agence (l'interface l'exige, la base le tolère) |
+| `sort_order` | INTEGER | ordre de la galerie, réordonnancement transactionnel de l'ensemble |
+| `credit` | TEXT NULL | auteur / agence ; exigé par l'API, toléré NULL pour compatibilité historique |
 | `source_url` | TEXT NULL | provenance |
-| `license` | TEXT NULL | licence ou mention « propriété du client » |
+| `license` | TEXT NULL | licence ; exigée par l'API, tolérée NULL pour compatibilité historique |
 | `created_at` | TEXT | |
 
 Suppression en cascade applicative : supprimer une annonce supprime ses lignes
@@ -171,6 +189,13 @@ CHECK ((kind = 'property' AND property_id IS NOT NULL) OR
        (kind = 'vehicle'  AND vehicle_id  IS NOT NULL))
 ```
 
+L'application exige des dates ISO réelles et `end_date > start_date`, déduplique
+le client par téléphone et refuse les chevauchements sur le même bien/véhicule
+parmi `pending`, `confirmed` et `active`, en excluant l'enregistrement courant
+lors d'une modification. Les suppressions d'annonces nettoient d'abord leurs
+réservations en transaction, ce qui est nécessaire avec les FK `ON DELETE SET NULL`
+et le `CHECK` qui exige une référence d'annonce.
+
 Les revenus affichés dans `/admin/finances` ne comptent que les statuts
 `confirmed`, `active` et `completed`, et excluent `is_demo = 1`.
 
@@ -179,11 +204,18 @@ Les revenus affichés dans `/admin/finances` ne comptent que les statuts
 ## 8. `admin_users`
 
 `id`, `email` UNIQUE (minuscules), `password_hash` (`scrypt$N$r$p$salt$hash`),
-`full_name`, `role` (`owner` `manager` `editor`), `active`, `last_login_at`,
-`created_at`, `updated_at`.
+`full_name`, `role` (`owner` `manager` `editor`), `active`,
+`must_change_password`, `notification_email`, `notify_new_inquiry`,
+`notify_reservation`, `last_login_at`, `created_at`, `updated_at`.
 
 Hiérarchie : `editor` (1) < `manager` (2) < `owner` (3). `DELETE` d'une annonce
-exige `manager` ou plus ; les autres écritures exigent `editor`.
+exige `manager` ou plus ; les autres écritures catalogue exigent `editor`.
+La gestion des comptes est réservée à l'owner, avec protection du dernier owner
+actif et interdiction de son auto-suppression. Un mot de passe temporaire impose
+le passage par `/admin/password` avant les API admin. Les nouvelles colonnes et
+les nouveaux comptes ont les deux drapeaux à **0 par défaut** : renseigner un
+email ne suffit pas à s'abonner. Aucun envoi sans `notification_email`, compte
+actif, drapeau de catégorie à 1 et consentement enregistré dans les préférences.
 
 ---
 
@@ -195,6 +227,15 @@ exige `manager` ou plus ; les autres écritures exigent `editor`.
 `token_hash = sha256(token + "." + SESSION_SECRET)` : une copie de la base ne
 permet pas de rejouer une session. Durée de vie absolue de 8 h ; révocation
 immédiate à la déconnexion.
+
+---
+
+## 9A. `password_reset_tokens`
+
+`id`, `user_id` (CASCADE), `token_hash` UNIQUE, `expires_at`, `used_at`,
+`created_at`. Seul un keyed-hash du jeton est stocké. Le jeton brut n'apparaît
+que dans l'URL de remise ; il expire après 30 minutes, ne peut être consommé
+qu'une fois et sa consommation révoque les sessions existantes.
 
 ---
 
@@ -241,13 +282,16 @@ base et visible au back-office.
 
 ---
 
-## Index (21)
+## Index explicites (28)
 
 | Table | Index |
 | --- | --- |
 | `properties` | `status`, `(status, is_demo, published_at DESC)` — *index public*, `commune_id`, `transaction_type`, `category`, `price`, `(lat, lng)` |
+| `places` | `(status, is_demo, published_at DESC)`, `commune_id`, `category`, `(location_status, lat, lng)` |
 | `vehicles` | `status`, `(status, is_demo, published_at DESC)`, `commune_id`, `category`, `deal_type` |
 | `media` | `(entity_type, entity_id, sort_order)` |
+| `customers` | `phone` |
+| `password_reset_tokens` | `user_id`, `expires_at` (+ `UNIQUE` sur `token_hash`) |
 | `inquiries` | `(status, created_at DESC)`, `(created_at DESC)` |
 | `reservations` | `(start_date, end_date)`, `status`, `is_demo` |
 | `admin_sessions` | `user_id`, `expires_at` (+ `UNIQUE` sur `token_hash`) |
@@ -264,6 +308,11 @@ index implicites supplémentaires.
   `CREATE INDEX IF NOT EXISTS`), puis applique les fichiers numérotés présents dans
   `db/migrations/` qui n'ont pas encore été joués, puis (ré)alimente le
   référentiel des communes.
+- `001` ajoute le réglage de location, `002` la visibilité publique véhicules,
+  `003_places_accounts_and_media.sql` ajoute lieux, resets et médias `place` ;
+  les colonnes de compte sont installées par le garde additif idempotent de
+  `db/client.ts`. La reconstruction `media` conserve toutes les lignes et l'upgrade
+  pré-003 a été testé sur une vraie base historique avec compte et média.
 - `npm run db:reset` supprime le fichier de base et repart du schéma — **outil de
   développement uniquement**, jamais à lancer en production.
 - Toute évolution ultérieure s'ajoute sous forme de fichier numéroté dans

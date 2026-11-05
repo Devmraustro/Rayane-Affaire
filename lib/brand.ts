@@ -54,11 +54,8 @@ export const BRAND = {
     defaultLocale: 'fr' as const,
     rtlLocales: ['ar'] as const,
   },
-  /**
-   * Launched in 2024 — kept as a *content* value, not a statistic. It is shown
-   * only in the About section, never in a numeric KPI block.
-   */
-  establishedYear: 2024,
+  /** No founding year is published until the client confirms one in writing. */
+  establishedYear: null as number | null,
 } as const;
 
 /** Design tokens mirrored in tailwind.config.ts and app/globals.css. */

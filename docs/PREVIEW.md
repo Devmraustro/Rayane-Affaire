@@ -43,8 +43,10 @@ réglages vides de contacts et des comptes synthétiques avec changement de mot 
 passe obligatoire ; il ne crée aucune annonce, aucun lieu et aucun client.
 
 `APP_ENV=preview` ajoute un bandeau visible et fait répondre `Disallow: /` à
-`robots.txt`. Les secrets et mots de passe initiaux sont des variables chiffrées
-Vercel, jamais des valeurs Git.
+`robots.txt`. **Au 5 novembre 2026, le projet Vercel est créé mais aucun
+ environnement applicatif ni déploiement n'a été validé** : aucune URL Vercel et
+aucun identifiant Vercel actif ne sont remis. Les éventuels secrets futurs doivent
+être des variables chiffrées Vercel, jamais des valeurs Git.
 
 **SQLite et `/tmp` sur Vercel sont éphémères et non fiablement partagés entre les
 fonctions.** Cette cible permet seulement des smoke checks et des contrôles

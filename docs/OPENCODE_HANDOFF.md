@@ -181,9 +181,10 @@ committed; on a fresh checkout, only the 11 commune references are seeded. The
 - Confirm the exact name, logo and palette (today: "RAYANE AFFAIRE", gold/sand/
   ink).
 - Approve the `/about` copy, the services list and their descriptions.
-- **Confirm the founding year.** The year 2024 is *not* confirmed and must not be
-  published as fact; `BRAND.establishedYear` is configuration, not a verified
-  claim.
+- **Confirm the founding year.** The former unverified 2024 value has been
+  removed. `BRAND.establishedYear` is now `null`, so both the public badge and
+  admin row stay hidden. Set a number only after written client confirmation and
+  update the regression test accordingly.
 - Approve opening hours, displayed languages and the privacy policy.
 
 ### B5. Geographic scope

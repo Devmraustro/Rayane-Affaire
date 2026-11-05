@@ -277,8 +277,8 @@ CREATE TABLE IF NOT EXISTS admin_users (
   active         INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1)),
   must_change_password INTEGER NOT NULL DEFAULT 0 CHECK (must_change_password IN (0, 1)),
   notification_email TEXT,
-  notify_new_inquiry INTEGER NOT NULL DEFAULT 1 CHECK (notify_new_inquiry IN (0, 1)),
-  notify_reservation INTEGER NOT NULL DEFAULT 1 CHECK (notify_reservation IN (0, 1)),
+  notify_new_inquiry INTEGER NOT NULL DEFAULT 0 CHECK (notify_new_inquiry IN (0, 1)),
+  notify_reservation INTEGER NOT NULL DEFAULT 0 CHECK (notify_reservation IN (0, 1)),
   last_login_at  TEXT,
   created_at     TEXT NOT NULL,
   updated_at     TEXT NOT NULL

@@ -14,7 +14,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "tsx scripts/prepare-chromium.ts && playwright test",
+    "test:e2e": "npm run prepare:chromium && playwright test --project=desktop-chromium && playwright test --project=mobile-chromium",
     "e2e:setup": "tsx scripts/e2e-setup.ts",
     "prepare:chromium": "tsx scripts/prepare-chromium.ts",
     "db:migrate": "tsx db/migrate.ts",

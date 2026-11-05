@@ -37,8 +37,8 @@ Site public bilingue (français / العربية), back-office authentifié, bas
 | `/properties/[slug]` | Galerie, caractéristiques, carte avec niveau de précision, formulaire de contact relié à l'annonce |
 | `/vehicles` | Catalogue véhicules (catégorie, marque, carburant, boîte, places, prix), uniquement lorsque la visibilité publique est activée dans les paramètres |
 | `/vehicles/[slug]` | Fiche détaillée, équipements, contact (404 tant que la section est masquée) |
-| `/places` | Catalogue bilingue des lieux et services locaux : type, commune, adresse, horaires, contact et carte |
-| `/places/[slug]` | Fiche lieu avec galerie attribuée, adresse, précision de position et itinéraire adapté |
+| `/places` | Catalogue bilingue des lieux et services locaux : type, commune, adresse, description et filtres |
+| `/places/[slug]` | Fiche lieu avec galerie attribuée, adresse, description, précision de position et itinéraire pour point vérifié |
 | `/map` | Carte Leaflet : biens et lieux ; marqueurs de biens uniquement pour positions vérifiées, lieux approximatifs explicitement signalés |
 | `/services`, `/about`, `/contact` | Pages éditoriales, coordonnées issues de la configuration |
 | `/credits` | Crédits et sources : attribution OpenStreetMap/ODbL, origine des photographies, statut des visuels de marque |
@@ -100,8 +100,8 @@ change. Chaque changement est journalisé dans le journal d'audit.
 | Vue d'ensemble | 6 indicateurs principaux + 4 secondaires, tous calculés par `COUNT`/`SUM` sur la base |
 | Biens | Création, édition, publication (*brouillon / publié / archivé*), suppression (rôle manager+), référence `RA-P-####` générée |
 | Véhicules | Idem, référence `RA-V-####` |
-| Lieux | Création/édition bilingue, types et communes, publication, prévisualisation privée, adresse, horaires et contact ; géocodage authentifié et/ou point manuel approximatif, vérification exacte explicite |
-| Comptes | Propriétaire/manager/éditeur, activation, rôles protégés, changement forcé, réinitialisation par lien à usage unique (30 min), révocation des sessions et préférences de notification |
+| Lieux | Création/édition bilingue, types et communes, publication, prévisualisation privée et adresse ; géocodage authentifié et/ou point manuel approximatif, vérification exacte explicite |
+| Comptes | Propriétaire/manager/éditeur, activation, rôles protégés, changement forcé, réinitialisation par lien à usage unique (30 min), révocation des sessions ; notifications initialement désactivées puis préférences explicites |
 | Médias | Upload multipart validé par *magic bytes* (JPEG/PNG/WebP/AVIF), 5 Mo max, noms UUID ; EXIF/GPS, XMP, IPTC, commentaires JPEG et texte PNG retirés avant écriture ; crédit, licence et texte alternatif bilingue **exigés par le serveur** ; réordonnancement transactionnel et suppression fichier + ligne |
 | Demandes | File de travail avec statuts (nouveau → contacté → qualifié → gagné/perdu/spam) et notes internes |
 | Clients | Liste issue des réservations réelles |

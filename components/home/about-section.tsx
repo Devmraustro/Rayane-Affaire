@@ -9,8 +9,7 @@ import { SmartImage } from '@/components/shared/smart-image';
 
 /**
  * "About" block. Editorial two-column layout with a brand-owned illustration.
- * No invented founding statistics: the only factual claim is the established
- * year, which is configuration.
+ * The founding-year badge stays absent until a verified year is configured.
  */
 export function AboutSection({
   vehiclePublicVisible = true,
@@ -37,14 +36,16 @@ export function AboutSection({
               className="aspect-[4/3] w-full"
             />
           </div>
-          <div className="absolute -bottom-5 start-5 rounded-xl border border-sand-200 bg-white px-4 py-3 shadow-card">
-            <p className="text-2xs font-semibold uppercase tracking-[0.14em] text-gold-700">
-              {locale === 'ar' ? 'منذ' : 'Depuis'}
-            </p>
-            <p className="font-display text-xl font-semibold text-ink-900">
-              {BRAND.establishedYear}
-            </p>
-          </div>
+          {BRAND.establishedYear !== null && (
+            <div className="absolute -bottom-5 start-5 rounded-xl border border-sand-200 bg-white px-4 py-3 shadow-card">
+              <p className="text-2xs font-semibold uppercase tracking-[0.14em] text-gold-700">
+                {locale === 'ar' ? 'منذ' : 'Depuis'}
+              </p>
+              <p className="font-display text-xl font-semibold text-ink-900">
+                {BRAND.establishedYear}
+              </p>
+            </div>
+          )}
         </div>
 
         <div>

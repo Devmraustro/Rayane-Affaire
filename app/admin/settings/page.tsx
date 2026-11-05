@@ -68,7 +68,7 @@ export default async function AdminSettingsPage() {
             <Row label="Marché" value={`${BRAND.market.wilaya[locale]} (${BRAND.market.wilayaCode})`} />
             <Row label="Devise" value="DZD" />
             <Row label="Langues" value="Français · العربية" />
-            <Row label="Depuis" value={String(BRAND.establishedYear)} />
+            {BRAND.establishedYear !== null && <Row label="Depuis" value={String(BRAND.establishedYear)} />}
           </dl>
           <p className="mt-3 rounded-lg bg-sand-50 px-3 py-2 text-2xs leading-4 text-ink-400">
             {t.admin.settings.brandNote}

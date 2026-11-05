@@ -47,7 +47,7 @@ export async function createAdminUser(input: {
   try {
     db.prepare(`INSERT INTO admin_users (id, email, password_hash, full_name, role, active,
       must_change_password, notification_email, notify_new_inquiry, notify_reservation,
-      last_login_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 1, ?, ?, 1, 1, NULL, ?, ?)`)
+      last_login_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 1, ?, ?, 0, 0, NULL, ?, ?)`)
       .run(id, input.email.trim().toLowerCase(), passwordHash, input.fullName.trim(), input.role,
         input.mustChangePassword ? 1 : 0, input.notificationEmail?.trim().toLowerCase() || null, now, now);
   } catch (error) {

@@ -153,6 +153,18 @@ Révoque la session **en base** puis efface les deux cookies.
 { "ok": true, "data": { "signedOut": true } }
 ```
 
+### Cycle de vie du mot de passe
+
+- `POST /api/auth/change-password` : session + CSRF, corps
+  `{ currentPassword, newPassword }`. Autorisé pendant le changement forcé ;
+  conserve la session courante et révoque les autres.
+- `POST /api/auth/forgot-password` : corps `{ email }`, même origine, 5 essais /
+  15 min / IP. Réponse générique `{ accepted: true }`, que le compte ou la
+  livraison existe ou non. Avec Resend configuré, envoie un lien de 30 minutes.
+- `POST /api/auth/reset-password` : corps `{ token, password }`, 8 essais / 15 min /
+  IP. Jeton à usage unique ; `400 INVALID_RESET_TOKEN` si invalide, expiré ou
+  consommé. Toutes les sessions du compte sont révoquées après succès.
+
 ---
 
 ## Administration — biens
@@ -325,8 +337,8 @@ Rôle : `editor`. `multipart/form-data`.
 
 | Champ | Contenu |
 | --- | --- |
-| `entityType` | `property` ou `vehicle` |
-| `entityId` | identifiant de l'annonce |
+| `entityType` | `property`, `vehicle` ou `place` |
+| `entityId` | identifiant de l'annonce ou du lieu |
 | `files` | 1 à 8 fichiers |
 | `altFr`, `altAr` | textes alternatifs bilingues (obligatoires) |
 | `credit` | auteur ou agence (obligatoire par le serveur) |
@@ -359,15 +371,49 @@ Réponse `200` :
 Rôle : `editor`. Supprime la ligne **et** le fichier, uniquement si l'URL
 correspond au schéma généré par l'application.
 
+### `PATCH /api/admin/media`
+
+Rôle : `editor`. Corps `{ entityType, entityId, mediaIds }`. Exige la liste
+complète des médias de la galerie, sans doublon ni élément étranger, puis met à
+jour tous les ordres dans une transaction.
+
+### `POST /api/admin/media/cleanup`
+
+Rôle : `manager`. Supprime les fichiers physiques orphelins qui respectent le
+schéma de nom généré, sans toucher aux médias référencés en base.
+
+---
+
+## Administration — lieux, comptes et réservations
+
+| Route | Rôle minimal | Effet |
+| --- | --- | --- |
+| `POST /api/admin/places` | editor | Crée un lieu brouillon/publié selon les règles de média et de coordonnées |
+| `PATCH /api/admin/places/[id]` | editor | Met à jour les champs bilingues et le point ; toute modification du point invalide sa vérification |
+| `DELETE /api/admin/places/[id]` | manager | Supprime lieu, lignes média puis fichiers générés |
+| `POST /api/admin/places/[id]/verify` | editor | Corps `{ verified: boolean }` ; action séparée et auditée, impossible sans coordonnées |
+| `GET /api/admin/geocode?q=…` | editor | Recherche Nominatim serveur, 30 requêtes/min/IP ; résultats approximatifs non persistés |
+| `POST /api/admin/users` | owner | Crée un compte avec mot de passe temporaire à changement forcé et notifications désactivées |
+| `PATCH`/`DELETE /api/admin/users/[id]` | owner | Rôle/activation, reset temporaire ou suppression, avec protection du dernier owner |
+| `PATCH /api/admin/notifications` | editor | Met à jour ses propres préférences ; email et chaque catégorie restent nécessaires à l'envoi |
+| `POST /api/admin/customers` | editor | Crée/retrouve un client normalisé pour une réservation |
+| `POST /api/admin/reservations` | editor | Crée client/réservation après dates strictes et contrôle de chevauchement |
+| `PATCH /api/admin/reservations/[id]` | editor | Modifie la réservation en excluant son propre identifiant du contrôle de conflit |
+| `DELETE /api/admin/reservations/[id]` | manager | Supprime la réservation et journalise l'action |
+
+Les écritures utilisent l'enveloppe et les protections CSRF communes. Les mots de
+passe temporaires ne sont retournés qu'à l'owner dans la réponse de création/reset
+et ne sont jamais journalisés.
+
 ---
 
 ## Cartographie et limitation de débit
 
 - `GET /api/*` n'est pas exposé pour les listes publiques : elles sont rendues
   côté serveur (meilleur SEO, aucune API à sécuriser inutilement).
-- Limitation : `login` (par IP **et** par compte), `inquiries` (par IP),
-  `media` (par IP). Compteurs persistés dans `rate_limits` ; réponse `429` avec
-  `Retry-After`.
+- Limitation : `login` (par IP **et** par compte), `inquiries`, `media`,
+  `geocode`, `forgot` et `reset` (par IP). Compteurs persistés dans
+  `rate_limits` ; réponse `429`, avec `Retry-After` lorsque disponible.
 
 ## Versions et compatibilité
 

@@ -1,129 +1,163 @@
 # Rapport de tests
 
-**Dernière vérification locale : 4 novembre 2026** (Node.js 22.22.3, Linux,
-Next.js 15.5.28). Les résultats locaux ci-dessous proviennent de commandes
-exécutées dans le dépôt. La ligne GitHub Actions repose sur les runs distants
-cités plus bas ; aucun déploiement n'a été effectué.
+**Vérification finale : 5 novembre 2026** — Node.js 22.22.3, Linux,
+Next.js 15.5.28. Les résultats ci-dessous proviennent de commandes réellement
+exécutées dans le dépôt. Aucun test d'intrusion, de charge ou audit axe-core
+n'est revendiqué.
 
----
-
-## 1. Résumé du contrôle qualité
+## 1. Résumé
 
 | Vérification | Résultat observé |
 | --- | --- |
-| Installation reproductible | `npm ci` terminé ; lockfile accepté |
-| Migrations sur base vide | succès ; migrations `001_vehicle_rental_setting.sql` et `002_vehicle_public_visibility.sql` appliquées ; 11 communes, 0 propriété, 0 véhicule, 0 admin |
+| Installation reproductible | `npm ci` — succès sur le lockfile final |
 | TypeScript | `npm run typecheck` — **0 erreur** |
-| ESLint | `npm run lint` — **0 avertissement, 0 erreur** (Next signale que `next lint` est déprécié pour Next 16 ; à migrer séparément) |
-| Vitest | **215 tests réussis / 215**, 9 fichiers, durée observée 3,92 s avec Vitest 5.1.0 |
-| Build | `npm run build` — **succès**, Next.js 15.5.28 ; 19/19 pages statiques générées, le reste servi dynamiquement |
-| Audit de toutes les dépendances | `npm audit` — **20 avis** : 19 modérés, 1 élevé, 0 critique. `npm run audit:gate` accepte uniquement l'avis high postcss, avec exception datée au 31 mars 2027 ; 0 high/critical non accepté. `npm audit --omit=dev` rapporte 2 avis (postcss high, Next moderate). Voir `docs/SECURITY_AUDIT.md` §10. |
-| Smoke HTTP sur build de production | **17/17** section véhicules masquée, puis **17/17** section publique après bascule en base, sans redémarrer le serveur |
-| Navigateur/E2E | **Non exécutés** : aucun navigateur installé, donc aucun contrôle visuel, responsive ou E2E revendiqué |
-| GitHub Actions | Les exécutions `push` et `pull_request` ont passé sur la branche : jobs `quality` et `security` réussis ; voir les checks de la PR #1 pour l'état du head courant. |
-| Déploiement | **Non effectué** ; aucune publication ni déploiement lancé depuis cette tâche. |
+| ESLint | `npm run lint` — **0 avertissement/erreur ESLint** ; Next signale seulement la future suppression de `next lint` en v16 |
+| Vitest | **247/247 tests**, **14 fichiers** |
+| Build optimisé | `npm run build` — succès ; **30/30 pages statiques** générées, routes dynamiques à la demande |
+| Audit complet | `npm audit --audit-level=low` — **0 vulnérabilité** |
+| Audit production | `npm audit --omit=dev --audit-level=low` — **0 vulnérabilité** |
+| Gate de sécurité | `npm run audit:gate` — succès, **0 exception active**, 0 avis bloquant |
+| Smoke HTTP de la preview | **19/19** sur le build de production |
+| Playwright desktop | **6/6**, Chromium 1440×1000, build de production |
+| Playwright mobile | **6/6**, Chromium 390×844 tactile, build de production |
+| Captures | **33 PNG** dans `artifacts/screenshots/`, dont FR, AR/RTL, desktop, mobile et changement forcé du compte client |
+| CI candidate | GitHub Actions run `42094421798` — succès sur `f5845a3d9bdd739a7dc81192068efc7fc8ec92ec` |
 
-La commande `npm run lint` affiche également l'avertissement de maintenance de
-Next : `next lint` sera retiré en Next.js 16. Cela ne produit actuellement aucune
-erreur ou alerte ESLint. Vitest 5.1.0 affiche un avertissement Vite non bloquant
-sur le chargement de `vitest.config.ts` en mode natif (comportement annoncé pour
-une future version majeure) ; la suite complète passe néanmoins.
-
----
+La commande unique `npm run verify` a été rejouée après les derniers changements
+applicatifs : typecheck, lint, 247 tests et build ont tous passé. `npm run
+test:e2e` lance ensuite desktop et mobile **séquentiellement avec une base et un
+serveur isolés frais pour chaque projet**. Cette séparation évite de consommer le
+quota réel de connexions d'un projet avec l'autre ; aucune limitation de sécurité
+n'a été affaiblie pour les tests.
 
 ## 2. Répartition Vitest
 
 | Fichier | Tests | Couverture principale |
 | --- | ---: | --- |
-| `tests/validation.test.ts` | 20 | Téléphones algériens, assainissement de texte FR/AR, demandes, connexion, annonces et véhicules |
-| `tests/filters.test.ts` | 11 | Paramètres de recherche, valeurs invalides, pagination, communes, sérialisation |
+| `tests/validation.test.ts` | 20 | Téléphones algériens, texte FR/AR, demandes, connexion, annonces et véhicules |
+| `tests/filters.test.ts` | 11 | Recherche, valeurs invalides, pagination, communes et sérialisation |
 | `tests/format.test.ts` | 13 | DZD FR/AR, surfaces, dates, durées, références et slugs |
-| `tests/i18n.test.ts` | 14 | Parité des dictionnaires, arabe, marque, locale, directions et énumérations |
-| `tests/security.test.ts` | 22 | scrypt, sessions, CSRF, limitation, magic bytes, refus des fichiers malveillants et déguisés, quota et suppressions limitées |
-| `tests/database.test.ts` | 20 | SQLite réel temporaire, communes, intégrité, propriétés, véhicules, carte, statistiques et médias |
-| `tests/api.test.ts` | 41 | Authentification, rôles, CSRF, CRUD, demandes, upload, réponses HTTP, settings et audit |
-| `tests/vehicle-rental-setting.test.ts` | 52 | Réglage secondaire de location, masquage global, toutes les lectures publiques, admin, restauration, API, FR/AR et intégrité des lignes |
-| `tests/image-sanitize.test.ts` | 22 | JPEG/PNG/WebP/AVIF, EXIF/GPS, XMP, commentaires, structure, idempotence et refus fail-closed |
-| **Total** | **215** | **9 fichiers** |
+| `tests/i18n.test.ts` | 15 | Parité FR/AR, RTL, énumérations et absence de l'année 2024 non confirmée |
+| `tests/security.test.ts` | 22 | scrypt, sessions, CSRF, limitation, magic bytes et quotas |
+| `tests/database.test.ts` | 20 | SQLite réel, intégrité, annonces, véhicules, carte, statistiques et médias |
+| `tests/api.test.ts` | 41 | Auth, rôles, CSRF, CRUD, demandes, upload, réponses, réglages et audit |
+| `tests/vehicle-rental-setting.test.ts` | 52 | Masquage/location véhicules sur toutes les projections publiques et admin |
+| `tests/image-sanitize.test.ts` | 22 | JPEG/PNG/WebP/AVIF, EXIF/GPS, XMP, structures et échec fermé |
+| `tests/places.test.ts` | 9 | CRUD lieux, publication, projection des coordonnées et vérification explicite |
+| `tests/geocoder.test.ts` | 6 | Validation, résultats, réponses invalides, indisponibilité et limitation Nominatim |
+| `tests/accounts.test.ts` | 7 | Comptes, changement forcé, reset à usage unique, révocation et Resend simulé |
+| `tests/reservations-media.test.ts` | 7 | Dates/chevauchements, suppression, médias lieux et nettoyage physique |
+| `tests/preview.test.ts` | 2 | Bootstrap synthétique, hash/forced change, contacts vides et noindex |
+| **Total** | **247** | **14 fichiers** |
 
-Les tests d'images utilisent des conteneurs construits à la main avec des
-marqueurs GPS, dont un JPEG avec en-têtes DQT/SOF0/DHT réalistes, un PNG avec
-`eXIf`/`tEXt` et un WebP dont les bits VP8X annoncent les chunks supprimés.
-Ils vérifient que les octets de données image conservés ne sont pas modifiés,
-que les coordonnées ne survivent pas et que les entrées malformées échouent au
-lieu d'être stockées.
+Les handlers sont testés avec de vrais `Request`/`FormData` Node et des fichiers
+SQLite temporaires. Les services externes sont simulés dans ces tests : aucun
+courriel réel n'est envoyé et aucun géocodage n'est déclaré réussi sur cette base.
 
-Les tests de base utilisent des fichiers SQLite temporaires et les gestionnaires
-d'API sont appelés avec de vrais objets `Request` et `FormData` Node. Les tests
-ne dépendent pas d'un navigateur ni d'un service externe.
+## 3. Migrations et préservation des données
 
----
+Trois contrôles distincts ont été exécutés :
 
-## 3. Smoke HTTP de la build
+1. base neuve : `001`–`003` appliquées, 11 communes OSM, aucune annonce réelle ;
+2. seconde exécution : aucune migration rejouée, aucune erreur de colonne ;
+3. véritable base pré-003 construite depuis le schéma du commit de base avec un
+   compte `legacy-owner` et un média `legacy-media` : la migration 003 s'applique,
+   la répétition est un no-op et les deux lignes conservent leurs données.
 
-Le script `scripts/smoke.ts` effectue 17 contrôles : routes publiques, robots,
-sitemap, garde de l'administration, page de connexion, pages 404, cohérence de
-la section véhicules, et absence de numéro téléphonique factice. Le contrôle
-véhicules accepte les deux états métier légitimes mais exige que toutes les
-surfaces publiques concordent.
+Sur la base historique recréée après le durcissement opt-in, le compte conserve
+`must_change_password=0` et reçoit les deux nouvelles préférences à **0** : une
+adresse ne suffit pas à abonner un compte. Le média conserve son ordre 2, son
+crédit et sa licence. La contrainte `media.entity_type` accepte désormais `place`.
+La seconde migration reste un no-op. Les bases de test sont hors Git dans
+`/tmp/rayane-pre003.db` et `/tmp/rayane-pre003-optin.db`.
 
-Vérification faite sur un build Next de production, base jetable migrée et
-chargée avec les 6 propriétés / 3 véhicules de démonstration. Le serveur est
-resté démarré pendant le changement du réglage :
+## 4. Parcours navigateurs exécutés
 
-| État | Résultats clés | Smoke |
-| --- | --- | --- |
-| `vehicle_public_visible = false` (valeur par défaut) | `/vehicles` et fiches → 404 ; aucune mention sur l'accueil ; menu masqué ; sitemap sans URL véhicule | **17/17** |
-| `vehicle_public_visible = true` | `/vehicles` → 200 ; catalogue avec 3 fiches ; menu visible ; sitemap inclus | **17/17** |
+Chaque projet Chromium exécute les six workflows suivants contre `next start`,
+pas contre un mock de navigateur :
 
-La bascule n'a nécessité ni redémarrage ni modification des lignes véhicules.
-Cette base de démonstration a été supprimée après le contrôle. Elle n'est pas une
-base de production. Le test HTTP n'est pas un test visuel : aucun navigateur n'a
-été utilisé.
+1. **Bien + réservation** : création brouillon, upload PNG réel, publication,
+   fiche publique, réservation, refus de chevauchement, liste et calendrier,
+   changement de statut puis suppression manager/owner ;
+2. **Véhicule + médias** : création, publication avec interrupteur public,
+   visibilité catalogue, réordonnancement et suppression fichier/ligne ;
+3. **Comptes + RBAC** : création par owner, deux notifications initialement
+   désactivées, première connexion avec changement imposé, droits éditeur,
+   abonnement explicite et préférences persistées ;
+4. **Public FR/AR** : catalogue, demande de contact, consentement, bascule arabe
+   RTL, navigation responsive et absence de débordement horizontal ;
+5. **Lieu complet** : brouillon, placement manuel, deux images, ordre, recherche
+   simulée, vérification exacte, publication, aperçu admin et projection publique ;
+6. **Géocodeur UI** : chargement, résultat, vide, erreur et limite de débit via
+   réponses contrôlées, sans prétendre joindre Nominatim depuis le sandbox.
 
----
+Résultat final : **6/6 desktop**, puis **6/6 mobile**. Les requêtes de sauvegarde
+et d'upload sont validées par leur statut HTTP, pas seulement par un texte toast.
+Les coordonnées de biens de démonstration restent absentes ; les lieux géocodés
+restent approximatifs tant qu'un éditeur ne vérifie pas un point exact.
 
-## 4. Autres contrôles et limites
+### Preuves visuelles
 
-- Les migrations ont été exécutées sur une base vide : elles créent le réglage
-  principal avec le défaut masqué. L'application ne supprime pas ni ne modifie
-  les véhicules lors d'une bascule ; les tests de politique vérifient aussi la
-  restauration et les lectures d'administration.
-- Les tests couvrent le retrait des métadonnées **avant l'écriture**. Une image
-  AVIF contenant EXIF/XMP est refusée (l'application ne peut pas la sanitiser
-  sûrement sans réécrire la structure ISO-BMFF). Les images JPEG/PNG/WebP sont
-  débarrassées des blocs non visuels connus.
-- L'orientation EXIF est supprimée avec les autres métadonnées. Une photo prise
-  de travers doit être réorientée avant l'envoi ; la rotation des pixels à
-  l'upload n'est pas encore implémentée.
-- Pas de test E2E, de vérification visuelle, d'audit axe-core, de test de charge,
-  ni de test d'intrusion externe.
-- Les photographies, coordonnées, horaires, coordonnées professionnelles et
-  inventaire réels restent à confirmer/fournir par le client.
-- Le pipeline `.github/workflows/ci.yml` a passé les jobs `quality` et
-  `security` sur push et sur pull request (4 novembre 2026). Un passage local ne
-  remplace pas le contrôle du head courant : vérifier `gh run list` et les checks
-  de la PR avant toute déclaration ultérieure.
+Les 33 captures sont conservées hors Git dans `artifacts/screenshots/`. Points
+contrôlés visuellement : accueil FR et AR, catalogue, fiche bien, carte, preview
+lieu vérifié/non vérifié, formulaires admin, préférences, réservations/calendrier,
+RBAC, véhicules et changement forcé du compte de remise. Exemples :
 
----
+- `desktop-chromium-home-fr.png` / `mobile-chromium-home-fr.png` ;
+- `desktop-chromium-home-ar-rtl.png` / `mobile-chromium-home-ar-rtl.png` ;
+- `desktop-chromium-place-admin-preview-verified.png` / variante mobile ;
+- `desktop-chromium-reservation-calendar.png` / variante mobile ;
+- `desktop-chromium-client-forced-password.png`.
 
-## 5. Reproduire le contrôle local
+Les pages s'empilent correctement à 390 px et aucun débordement horizontal n'a
+été observé. **Les tuiles OSM sont grises dans les captures sandbox** car le
+réseau sortant du navigateur est restreint ; Leaflet, les marqueurs, contrôles et
+attributions sont visibles. Cela ne constitue pas une preuve de chargement des
+tuiles depuis le navigateur du client.
 
-Le pipeline démarre avec une base vide. Reproduire ses étapes principales :
+## 5. Smoke et état de remise
+
+Le smoke du serveur de preview vérifie 19 points : routes publiques dont `/places`,
+robots, sitemap, admin protégé, login, vraies 404, cohérence du masquage véhicules
+et absence du numéro factice. Résultat : **19/19**.
+
+Contrôles supplémentaires réussis :
+
+- `robots.txt` répond `User-Agent: *` / `Disallow: /` en preview ;
+- l'année 2024 non confirmée n'apparaît plus sur l'accueil ;
+- une vraie connexion Chromium avec le mot de passe de remise aboutit à
+  `/admin/password` ;
+- la session de ce contrôle est ensuite révoquée ; le compte conserve
+  `must_change_password=1` et zéro session active.
+
+## 6. Limites et contrôles non revendiqués
+
+- Le sandbox ne peut pas joindre directement Nominatim (`ECONNRESET` avant TLS).
+  Un fetch externe a retourné une vraie relation OSM pour Béjaïa, mais **le
+  géocodeur authentifié de l'application en ligne n'a pas été validé**.
+- Aucun email Resend réel n'a été envoyé ; le backend est désactivé en preview.
+- Pas d'audit axe-core, test de charge, pentest externe ou validation par un
+  utilisateur client.
+- L'orientation EXIF est supprimée, pas appliquée aux pixels : réorienter les
+  photos avant upload.
+- Les captures et traces Playwright sont des artefacts locaux ignorés par Git.
+
+## 7. Reproduire
 
 ```bash
 npm ci
 export NODE_ENV=test
 export DATABASE_PATH=./data/ci.db
 npm run db:migrate
-npm run typecheck
-npm run lint
-npm run test
-npm run build
+npm run verify
 npm run audit:gate
+npm run test:e2e
 ```
 
-Pour le smoke HTTP, semer uniquement la base jetable, lancer le serveur de
-production sur le build, puis exécuter le script ; inverser le réglage en base
-pour vérifier l'autre état. **Ne pas employer `data/rayane.db` pour ce contrôle**
-si elle contient des données à conserver.
+Pour le smoke, démarrer un build de production sur une base jetable, puis :
+
+```bash
+npm run smoke -- http://127.0.0.1:3000
+```
+
+Ne jamais utiliser la base client pour les seeds, les migrations de test ou E2E.
