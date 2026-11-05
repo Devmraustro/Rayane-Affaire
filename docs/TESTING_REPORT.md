@@ -12,20 +12,21 @@ n'est revendiqué.
 | Installation reproductible | `npm ci` — succès sur le lockfile final |
 | TypeScript | `npm run typecheck` — **0 erreur** |
 | ESLint | `npm run lint` — **0 avertissement/erreur ESLint** ; Next signale seulement la future suppression de `next lint` en v16 |
-| Vitest | **247/247 tests**, **14 fichiers** |
+| Vitest | **251/251 tests**, **14 fichiers** |
 | Build optimisé | `npm run build` — succès ; **30/30 pages statiques** générées, routes dynamiques à la demande |
-| Audit complet | `npm audit --audit-level=low` — **0 vulnérabilité** |
+| Audit complet | `npm audit --audit-level=low` — **0 vulnérabilité** (570 dépendances totales, 147 prod / 386 dev) |
 | Audit production | `npm audit --omit=dev --audit-level=low` — **0 vulnérabilité** |
 | Gate de sécurité | `npm run audit:gate` — succès, **0 exception active**, 0 avis bloquant |
-| Smoke HTTP de la preview | **19/19** sur le build de production |
+| Smoke HTTP de la preview | **19/19** sur le build de production (`APP_ENV=preview`) |
 | Playwright desktop | **6/6**, Chromium 1440×1000, build de production |
 | Playwright mobile | **6/6**, Chromium 390×844 tactile, build de production |
 | Captures | **33 PNG** dans `artifacts/screenshots/`, dont FR, AR/RTL, desktop, mobile et changement forcé du compte client |
-| CI candidate | GitHub Actions run `42094421798` — succès sur `f5845a3d9bdd739a7dc81192068efc7fc8ec92ec` |
+| CI checkpoint vérifié | GitHub Actions run `42105969372` — succès sur `2cdb0304408d80b2c57067320ca6a6cfea455aec` |
 
-La commande unique `npm run verify` a été rejouée après les derniers changements
-applicatifs : typecheck, lint, 247 tests et build ont tous passé. `npm run
-test:e2e` lance ensuite desktop et mobile **séquentiellement avec une base et un
+La commande unique `npm run verify` a été rejouée après le correctif de cohérence
+Resend (`/admin/notifications` utilise désormais `emailDeliveryConfigured()`) et
+l'ajout des tests de contrat Nominatim v2 / route `/api/admin/geocode` : typecheck,
+lint, **251 tests** et build ont tous passé. `npm run test:e2e` lance ensuite desktop et mobile **séquentiellement avec une base et un
 serveur isolés frais pour chaque projet**. Cette séparation évite de consommer le
 quota réel de connexions d'un projet avec l'autre ; aucune limitation de sécurité
 n'a été affaiblie pour les tests.
@@ -44,11 +45,11 @@ n'a été affaiblie pour les tests.
 | `tests/vehicle-rental-setting.test.ts` | 52 | Masquage/location véhicules sur toutes les projections publiques et admin |
 | `tests/image-sanitize.test.ts` | 22 | JPEG/PNG/WebP/AVIF, EXIF/GPS, XMP, structures et échec fermé |
 | `tests/places.test.ts` | 9 | CRUD lieux, publication, projection des coordonnées et vérification explicite |
-| `tests/geocoder.test.ts` | 6 | Validation, résultats, réponses invalides, indisponibilité et limitation Nominatim |
-| `tests/accounts.test.ts` | 7 | Comptes, changement forcé, reset à usage unique, révocation et Resend simulé |
+| `tests/geocoder.test.ts` | 8 | Validation, fixtures Nominatim v2 réelles (FR/AR/communes/wilayas/vide), route `/api/admin/geocode` et non-persistance |
+| `tests/accounts.test.ts` | 9 | Comptes, changement forcé, reset à usage unique, révocation, opt-in notifications et vérification stricte de configuration Resend |
 | `tests/reservations-media.test.ts` | 7 | Dates/chevauchements, suppression, médias lieux et nettoyage physique |
 | `tests/preview.test.ts` | 2 | Bootstrap synthétique, hash/forced change, contacts vides et noindex |
-| **Total** | **247** | **14 fichiers** |
+| **Total** | **251** | **14 fichiers** |
 
 Les handlers sont testés avec de vrais `Request`/`FormData` Node et des fichiers
 SQLite temporaires. Les services externes sont simulés dans ces tests : aucun
@@ -132,10 +133,20 @@ Contrôles supplémentaires réussis :
 
 ## 6. Limites et contrôles non revendiqués
 
-- Le sandbox ne peut pas joindre directement Nominatim (`ECONNRESET` avant TLS).
-  Un fetch externe a retourné une vraie relation OSM pour Béjaïa, mais **le
-  géocodeur authentifié de l'application en ligne n'a pas été validé**.
-- Aucun email Resend réel n'a été envoyé ; le backend est désactivé en preview.
+- Le sandbox E2B bloque le TLS direct vers Nominatim (`SSL_ERROR_SYSCALL` hors
+  liste blanche SNI). Cinq requêtes externes réelles vers Nominatim v2 (`Rue de la
+  Liberté, Béjaïa`, `Béjaïa`, `Tichy`, `Sétif`, `بجاية` et une recherche vide `[]`)
+  ont été exécutées puis rejouées dans `searchAddress()` et `GET /api/admin/geocode`,
+  mais **l'appel sortant direct depuis un déploiement public reste à valider une
+  fois l'hôte public ouvert**.
+- Le conteneur Linux minimal de test ne contient pas de police système arabe :
+  `lang="ar"`, `dir="rtl"` et la mise en page inversée sont vérifiés, mais le rendu
+  typographique arabe doit être relu sur un appareil client disposant des polices
+  système standards.
+- Aucun email Resend réel n'a été envoyé ; `emailDeliveryConfigured()` exige
+  désormais partout (`lib/server/email.ts`, `/api/admin/notifications` et
+  `/admin/notifications`) `EMAIL_DELIVERY=resend` ainsi que `RESEND_API_KEY` et
+  `EMAIL_FROM` non vides.
 - Pas d'audit axe-core, test de charge, pentest externe ou validation par un
   utilisateur client.
 - L'orientation EXIF est supprimée, pas appliquée aux pixels : réorienter les

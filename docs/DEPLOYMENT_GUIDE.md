@@ -43,14 +43,17 @@ complexité maîtrisés, données en Europe/Algérie selon l'hébergeur choisi.
 
 ### 2.1 Preview Vercel jetable — limites strictes
 
-Le projet `rayane-affaire-preview` est distinct de toute production. **Il est
-créé mais non déployé au 5 novembre 2026** ; les étapes ci-dessous décrivent la
-cible technique, pas un service public déjà validé. Le bootstrap
-de `db/preview-bootstrap.ts` n'est exécuté que si **les deux** conditions suivantes
-sont réunies : `VERCEL_ENV=preview` et `PREVIEW_EPHEMERAL=1`. Il exige une base
-vide de biens, véhicules, lieux et clients, crée les 11 communes, les réglages et
-les comptes synthétiques, puis impose le changement du mot de passe owner. Il ne
-crée aucune annonce ou donnée client.
+Le projet `rayane-affaire-preview` (`prj_Wh0IP89d5muyxMFopgNBMB1aagdS`) est
+distinct de toute production. **Au 5 novembre 2026, ses 9 variables d'environnement
+`preview` sont configurées (secrets en mode `sensitive`), mais aucun déploiement
+n'est publié** tant que le propriétaire n'a pas lié le dépôt GitHub (`main` comme
+branche de référence non déployée) et désactivé `Vercel Authentication`
+(`ssoProtection: all_except_custom_domains`) dans le tableau de bord Vercel — voir
+`docs/PREVIEW.md` §2. Le bootstrap de `db/preview-bootstrap.ts` n'est exécuté que
+si **les deux** conditions suivantes sont réunies : `VERCEL_ENV=preview` et
+`PREVIEW_EPHEMERAL=1`. Il crée les 11 communes, les réglages vides de contacts et
+les comptes synthétiques avec changement forcé du mot de passe (`must_change_password=1`)
+et notifications désactivées (`0`). Il ne crée aucune annonce ou donnée client.
 
 Variables minimales de cette preview :
 

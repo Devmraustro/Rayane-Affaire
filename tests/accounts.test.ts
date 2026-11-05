@@ -19,4 +19,67 @@ describe('account safeguards and preferences', () => {
 
 describe('email adapter', () => {
   it('sends reset content server-side with Resend credentials and no browser exposure', async () => { const previous = { ...process.env }; process.env.EMAIL_DELIVERY = 'resend'; process.env.RESEND_API_KEY = 'test-secret-key'; process.env.EMAIL_FROM = 'RAYANE <test@example.dz>'; const fetcher = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response('{"id":"mail"}', { status: 200 })); const { sendEmail } = await import('@/lib/server/email'); await sendEmail({ to: 'owner@example.dz', subject: 'Reset', text: 'single-use-link' }, fetcher as typeof fetch); const [url, init] = fetcher.mock.calls[0]!; expect(String(url)).toBe('https://api.resend.com/emails'); expect((init?.headers as Record<string,string>).Authorization).toBe('Bearer test-secret-key'); expect(String(init?.body)).toContain('single-use-link'); process.env = previous; });
+
+  it('reports email delivery as configured only when backend, API key and sender exist', async () => {
+    const previous = { ...process.env };
+    try {
+      const { emailDeliveryConfigured, sendEmail } = await import('@/lib/server/email');
+      delete process.env.EMAIL_DELIVERY;
+      delete process.env.RESEND_API_KEY;
+      delete process.env.EMAIL_FROM;
+      expect(emailDeliveryConfigured()).toBe(false);
+
+      process.env.EMAIL_DELIVERY = 'resend';
+      expect(emailDeliveryConfigured()).toBe(false);
+
+      process.env.RESEND_API_KEY = 're_test_key';
+      expect(emailDeliveryConfigured()).toBe(false);
+
+      process.env.EMAIL_FROM = '   ';
+      expect(emailDeliveryConfigured()).toBe(false);
+      await expect(sendEmail({ to: 'owner@example.dz', subject: 'Test', text: 'Body' }, vi.fn() as unknown as typeof fetch))
+        .rejects.toThrow(/RESEND_API_KEY and EMAIL_FROM are required/);
+
+      process.env.EMAIL_FROM = 'RAYANE AFFAIRE <noreply@example.dz>';
+      expect(emailDeliveryConfigured()).toBe(true);
+
+      process.env.EMAIL_DELIVERY = 'console';
+      (process.env as Record<string, string | undefined>).NODE_ENV = 'production';
+      expect(emailDeliveryConfigured()).toBe(false);
+    } finally {
+      process.env = previous;
+    }
+  });
+
+  it('keeps notification API configured flag false when EMAIL_DELIVERY=resend lacks credentials', async () => {
+    const previous = { ...process.env };
+    try {
+      process.env.EMAIL_DELIVERY = 'resend';
+      delete process.env.RESEND_API_KEY;
+      delete process.env.EMAIL_FROM;
+      const { createAdminUser } = await import('@/lib/db/admin-users');
+      const { issueSession } = await import('@/lib/server/session');
+      const { PATCH } = await import('@/app/api/admin/notifications/route');
+      const user = await createAdminUser({ email: 'prefs-unconfigured@test.dz', password, fullName: 'Prefs User', role: 'editor' });
+      expect(user.notifyNewInquiry).toBe(false);
+      expect(user.notifyReservation).toBe(false);
+      const session = issueSession(user.id);
+      const response = await PATCH(new Request('http://localhost:3000/api/admin/notifications', {
+        method: 'PATCH',
+        headers: {
+          host: 'localhost:3000',
+          origin: 'http://localhost:3000',
+          'content-type': 'application/json',
+          cookie: `ra_session=${session.token}`,
+          'x-ra-csrf': session.csrfToken,
+        },
+        body: JSON.stringify({ notificationEmail: 'prefs-unconfigured@test.dz', notifyNewInquiry: false, notifyReservation: false }),
+      }));
+      expect(response.status).toBe(200);
+      const payload = await response.json() as { ok: boolean; data: { emailConfigured: boolean } };
+      expect(payload.data.emailConfigured).toBe(false);
+    } finally {
+      process.env = previous;
+    }
+  });
 });

@@ -7,17 +7,15 @@ ni URL publique non vérifiée.
 ## 1. Branche et commits
 
 - Dépôt : `Devmraustro/Rayane-Affaire`
-- Branche fixe : `arena/ae2f313a-rayane-affaire`
-- Commit candidate initial : `f5845a3d9bdd739a7dc81192068efc7fc8ec92ec`
-- **Commit applicatif/documentaire vérifié : `44f355f9899331aa56b6c1479a78d01a18457b64`**
-- Le push de ce commit a été confirmé par `git ls-remote` avec le même SHA.
-- Le commit suivant contient uniquement ce rapport final ; le `HEAD` exact est
-  à vérifier avec `git rev-parse HEAD` et `git ls-remote origin <branche>`.
-- Aucune fusion, aucune modification de `main`, aucune mise en production.
-
-CI : le run GitHub Actions `42094421798` a réussi sur le commit candidate. Les
-résultats locaux ci-dessous sont ceux du commit vérifié `44f355f…` ; les checks
-du head final doivent être relus avec `gh run list --branch <branche>`.
+- Branche de session active : `arena/3f977b0a-rayane-affaire`
+  (avancée par fast-forward depuis le checkpoint vérifié `2cdb0304408d80b2c57067320ca6a6cfea455aec`
+  de `arena/ae2f313a-rayane-affaire`, lui-même descendant de `arena/c6e4a623-rayane-affaire` @ `9cd516e40cb9a917a709bc7fc75be34254531e1a`)
+- Commit applicatif précédent vérifié : `44f355f9899331aa56b6c1479a78d01a18457b64`
+- Commit documentaire précédent vérifié : `2cdb0304408d80b2c57067320ca6a6cfea455aec` (CI run `42105969372` réussi)
+- Le `HEAD` exact de `arena/3f977b0a-rayane-affaire` après la passe de configuration
+  preview, de durcissement Resend et de tests Nominatim se vérifie avec
+  `git rev-parse HEAD` et `git ls-remote origin arena/3f977b0a-rayane-affaire`.
+- Aucune fusion de PR, aucune modification de `main`, aucune mise en production.
 
 ## 2. Fonctionnalités livrées
 
@@ -67,12 +65,12 @@ adresse susceptible d'être pris pour un contact réel.
 | `npm ci` | Succès |
 | `npm run typecheck` | 0 erreur |
 | `npm run lint` | 0 avertissement/erreur ESLint ; seul l'avis de dépréciation de `next lint` pour Next 16 reste |
-| `npm test` | **247/247 tests, 14 fichiers** |
+| `npm test` | **251/251 tests, 14 fichiers** |
 | `npm run build` | Succès, 30/30 pages statiques, build optimisé |
 | `npm run test:e2e` | **6/6 desktop + 6/6 mobile**, build `next start` |
 | Smoke preview | **19/19** |
-| `npm audit` | **0 vulnérabilité**, graphe complet |
-| `npm audit --omit=dev` | **0 vulnérabilité**, production |
+| `npm audit` | **0 vulnérabilité**, graphe complet (570 dépendances ; les 10 anciens avis modérés `minimatch` de l'arbre ESLint sont éliminés par override) |
+| `npm audit --omit=dev` | **0 vulnérabilité**, production (147 dépendances) |
 | `npm run audit:gate` | Succès, 0 exception active |
 | `git diff --check` | Succès |
 | Staging secrets/DB/artefacts | Exclus et contrôlés avant chaque commit |
@@ -107,25 +105,25 @@ des tuiles dans le navigateur du client n'est donc pas revendiqué comme vérifi
 
 | Cible | État réel |
 | --- | --- |
-| Arena persistante | **En cours d'exécution** sur le port 3000 avec `data/preview.db` et `data/preview-uploads/` |
-| URL Arena | `https://3000-imfyajv2gktw72glqhpu5.e2b.app` |
-| Accès externe Arena | **403 sans `e2b-traffic-access-token`** : utilisable via le Live Preview Arena authentifié, pas comme URL publique autonome |
-| Contenu | 6 biens et 3 véhicules de démonstration marqués ; véhicules masqués publiquement par défaut ; aucune donnée client |
-| Compte de remise | Mot de passe une fois, redirection Chromium vers `/admin/password` vérifiée, notifications 0, sessions 0 |
+| Arena persistante | **En cours d'exécution** sur le port 3000 (`0.0.0.0`) avec `data/preview.db` et `data/preview-uploads/` |
+| URL Arena (session courante) | `https://3000-iay8pn3tiqnl3rqlpl15v.e2b.app` |
+| Accès externe Arena | **403 sans `e2b-traffic-access-token`** (vérifié par requête HTTP externe non authentifiée) : utilisable via le Live Preview Arena authentifié, pas comme URL publique autonome |
+| Contenu | 6 biens et 3 véhicules de démonstration marqués (`is_demo=1`) ; véhicules masqués publiquement par défaut ; aucune donnée client |
+| Compte de remise | `owner.preview@rayane-affaire.invalid`, mot de passe une fois, redirection Chromium vers `/admin/password` vérifiée, notifications 0, sessions 0 |
 | Identifiants | Fichier local privé `PREVIEW_ACCESS.txt`, ignoré par Git, mode 600 |
-| Vercel | Projet `rayane-affaire-preview` créé ; **aucun déploiement validé et aucune URL publique active** |
-| Production | Non déployée, non autorisée par ce rapport |
+| Vercel (`rayane-affaire-preview`, `prj_Wh0IP89d5muyxMFopgNBMB1aagdS`) | **9 variables d'environnement `preview` configurées** (secrets en mode `sensitive`) ; **0 déploiement publié (`deployments: []`)** — bloqué par l'absence de liaison Git (`link` absent, ce qui force `POST /v13/deployments` en `target: "production"`) et par `ssoProtection: all_except_custom_domains` (401 SSO sur les URL `*.vercel.app`) |
+| Railway | Connecteur non supporté dans l'environnement et aucune configuration/clé Railway présente |
+| Production | Non déployée, non autorisée par ce rapport (les deux déploiements API que Vercel avait promus en `target: "production"` faute de `link` ont été annulés en phase `INITIALIZING` puis supprimés) |
 
 **Critère « preview publiquement accessible sur une URL non-localhost » : NON
 SATISFAIT.** La preview Arena est non-localhost et persistante mais exige le jeton
-d'infrastructure. Aucun texte de ce rapport ne transforme ce 403 en réussite
-publique. Le projet Vercel seul ne fournit pas d'URL de déploiement.
-
-Le bootstrap Vercel reste disponible pour une future preview jetable avec
-`VERCEL_ENV=preview` + `PREVIEW_EPHEMERAL=1`. Il ne contient aucune donnée client.
-SQLite et `/tmp` sur Vercel sont éphémères et non fiablement partagés : cette cible
-ne doit jamais être présentée comme stockage durable. Voir `docs/PREVIEW.md` et
-`docs/DEPLOYMENT_GUIDE.md`.
+d'infrastructure E2B. Sur Vercel, le connecteur MCP ne permet ni de lier le dépôt
+GitHub au projet existant (`link` absent dans `update_project`), ni de désactiver
+`ssoProtection` (`Vercel Authentication`). Dès que le propriétaire effectue ces
+deux réglages dans Vercel Dashboard (voir `docs/PREVIEW.md` §2), les 9 variables
+`preview` déjà enregistrées permettent un déploiement Preview immédiat sans toucher
+à la production. SQLite et `/tmp` sur Vercel restent éphémères : pour une preview
+publique avec CRUD durable, utiliser Railway (avec volume `/data`) ou un VPS.
 
 ## 5. Données, médias et vérité métier
 
@@ -142,12 +140,20 @@ ne doit jamais être présentée comme stockage durable. Voir `docs/PREVIEW.md` 
 
 ## 6. Limites non résolues
 
-1. **Accès public de preview** : déploiement externe à terminer ou autorisation de
-   trafic Arena à configurer par l'administrateur de l'infrastructure.
-2. **Géocodeur live** : accès direct Nominatim depuis le sandbox en échec TLS ;
-   les tests simulés passent et un fetch externe a trouvé Béjaïa, mais la route
-   authentifiée en ligne n'a pas été validée.
-3. **Email live** : aucun compte/domaine Resend configuré, aucun email réel envoyé.
+1. **Accès public de preview** : lier `Devmraustro/Rayane-Affaire` (`main` comme
+   branche de référence non déployée) et désactiver `Vercel Authentication` sur
+   `rayane-affaire-preview` dans Vercel Dashboard, ou déployer le conteneur sur
+   Railway (volume `/data`) / VPS pour disposer aussi d'une persistance SQLite réelle.
+2. **Géocodeur live** : le pare-feu SNI du sandbox E2B bloque le TLS sortant direct
+   vers Nominatim (`SSL_ERROR_SYSCALL`), mais 5 requêtes réelles Nominatim v2
+   (`Rue de la Liberté, Béjaïa`, `Béjaïa`, `Tichy`, `Sétif`, `بجاية` + recherche
+   vide `[]`) ont été récupérées et validées de bout en bout dans `searchAddress()`
+   et `GET /api/admin/geocode` ; l'appel direct depuis l'hôte public reste à
+   confirmer à l'ouverture de l'URL publique.
+3. **Email live** : aucun compte/domaine Resend configuré (`RESEND_API_KEY` et
+   `EMAIL_FROM` absents), aucun email réel envoyé ; `/admin/notifications` et
+   `/api/admin/notifications` n'affichent désormais Resend comme configuré que si
+   la clé et l'expéditeur sont tous deux renseignés.
 4. **Persistance production** : prévoir VPS/disque + sauvegardes, ou PostgreSQL +
    stockage objet avant Vercel. Tester une restauration avant données réelles.
 5. **Qualité externe** : pas d'axe-core, charge, pentest ou validation utilisateur.

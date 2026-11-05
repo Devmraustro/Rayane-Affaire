@@ -22,7 +22,7 @@ Légende : **Mis en œuvre** (code + contrôle), **Partiel** (limite connue),
 | Dernier owner | **Mis en œuvre** | Refus de rétrograder, désactiver ou supprimer le dernier propriétaire actif ; pas d'auto-suppression owner |
 | Premier mot de passe | **Mis en œuvre** | Changement forcé avant API admin ; le compte Arena de remise a été contrôlé dans Chromium puis ses sessions de test révoquées |
 | Reset en libre-service | **Mis en œuvre** | Jeton aléatoire à usage unique, seulement son empreinte keyed-hash en base, expiration 30 min, révocation des sessions après consommation |
-| Email | **Partiel** | Adaptateur Resend testé avec fetch simulé ; aucune livraison réelle configurée ou revendiquée |
+| Email | **Partiel** | Adaptateur Resend testé avec fetch simulé ; état « configuré » affiché uniquement si `EMAIL_DELIVERY=resend`, `RESEND_API_KEY` et `EMAIL_FROM` sont tous présents et non vides ; aucune livraison réelle configurée ou revendiquée |
 | 2FA | **Absent** | À ajouter avant une exposition multi-administrateurs sensible |
 
 La réinitialisation ne révèle pas si un compte existe. Les notifications de
@@ -93,8 +93,14 @@ autorisés. Les liens sortants utilisent `noopener noreferrer`.
 - Aucun secret GitHub/Vercel n'est écrit dans le dépôt. Les identifiants de remise
   sont dans le fichier local ignoré `PREVIEW_ACCESS.txt`, mode 600.
 - Le bootstrap Vercel exige **à la fois** `VERCEL_ENV=preview` et
-  `PREVIEW_EPHEMERAL=1`, échoue sur une base contenant des données métier et ne
-  crée aucune annonce/client. Les comptes synthétiques ont un changement forcé.
+  `PREVIEW_EPHEMERAL=1` dans `db/client.ts`, n'écrit que par `INSERT OR IGNORE`
+  (communes, réglages vides, comptes synthétiques) et ne crée aucune annonce ni
+  aucun client. Les comptes synthétiques ont un changement forcé (`must_change_password=1`)
+  et leurs préférences de notification à `0`.
+- Sur le projet Vercel `rayane-affaire-preview` (`prj_Wh0IP89d5muyxMFopgNBMB1aagdS`),
+  les secrets de preview (`SESSION_SECRET`, `PREVIEW_ADMIN_EMAIL`,
+  `PREVIEW_ADMIN_PASSWORD`) sont stockés en type `sensitive` sur la seule cible
+  `preview`. Aucun déploiement `production` n'a été conservé.
 - `APP_ENV=preview` affiche un bandeau et refuse toute indexation. Les contacts
   synthétiques sont vides ; l'année de création non confirmée n'est plus publiée.
 - Arena conserve la base et les uploads dans la session mais son URL externe
