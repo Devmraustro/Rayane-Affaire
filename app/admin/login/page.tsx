@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 /** Login page. An already-authenticated visitor goes straight to the dashboard. */
 export default async function AdminLoginPage() {
   const session = await getSession();
-  if (session) redirect('/admin');
+  if (session) redirect(session.user.mustChangePassword ? '/admin/password' : '/admin');
 
   const configured = countAdminUsers() > 0;
 

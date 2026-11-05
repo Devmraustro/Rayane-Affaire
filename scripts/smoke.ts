@@ -16,6 +16,7 @@ interface Check {
 const checks: Check[] = [
   { path: '/', expect: [200], label: 'Accueil' },
   { path: '/properties', expect: [200], label: 'Biens' },
+  { path: '/places', expect: [200], label: 'Lieux' },
   // Either the whole section is public (200) or hidden (404). Which one is a
   // client decision; the state-consistency block below checks that the rest of
   // the surface agrees with it.
@@ -33,6 +34,7 @@ const checks: Check[] = [
   // Soft-404 guard: a missing listing detail must answer 404, not 200 with a
   // "not found" body. A root `loading.tsx` used to break exactly this.
   { path: '/properties/annonce-inexistante-verification', expect: [404], label: 'Bien absent' },
+  { path: '/places/lieu-inexistant-verification', expect: [404], label: 'Lieu absent' },
   { path: '/vehicles/vehicule-inexistant-verification', expect: [404], label: 'Véhicule absent' },
 ];
 

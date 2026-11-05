@@ -1,0 +1,4 @@
+import Link from 'next/link';
+import { ForgotPasswordForm } from '@/components/admin/password-forms';
+export const metadata = { title: 'Mot de passe oublié', robots: { index: false, follow: false } };
+export default function ForgotPasswordPage() { return <main className="grid min-h-dvh place-items-center bg-sand-50 px-5 py-12"><div className="w-full max-w-md rounded-2xl border border-sand-200 bg-white p-6"><h1 className="text-2xl">Mot de passe oublié · استعادة كلمة المرور</h1><p className="mb-5 mt-2 text-sm leading-6 text-ink-500">Un lien à usage unique, valable 30 minutes. · رابط لمرة واحدة صالح لمدة 30 دقيقة.</p><ForgotPasswordForm /><Link href="/admin/login" className="mt-5 inline-flex text-xs text-gold-700 hover:underline">Retour à la connexion · العودة لتسجيل الدخول</Link></div></main>; }

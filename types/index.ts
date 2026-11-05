@@ -244,6 +244,56 @@ export interface VehicleSummary {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Editorial places                                                           */
+/* -------------------------------------------------------------------------- */
+
+export type PlaceCategory =
+  | 'landmark'
+  | 'restaurant'
+  | 'cafe'
+  | 'hotel'
+  | 'shopping'
+  | 'service'
+  | 'culture'
+  | 'nature'
+  | 'beach'
+  | 'other';
+export type PlaceCoordinatePrecision = 'exact' | 'approximate' | 'pending';
+export type LocationVerificationStatus = 'missing' | 'unverified' | 'verified';
+
+export interface Place {
+  id: string;
+  slug: string;
+  reference: string;
+  name: Translated;
+  description: Translated;
+  address: Translated;
+  commune: Commune;
+  category: PlaceCategory;
+  /** Null in every public projection until an editor verifies the location. */
+  coordinates: GeoPoint | null;
+  coordinatePrecision: PlaceCoordinatePrecision;
+  locationStatus: LocationVerificationStatus;
+  verifiedBy: string | null;
+  verifiedAt: string | null;
+  status: ListingStatus;
+  isDemo: boolean;
+  media: MediaItem[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PlaceFilters {
+  query: string;
+  wilayaCode: string;
+  commune: string;
+  category: 'all' | PlaceCategory;
+  includeDemo: boolean;
+  page: number;
+  pageSize: number;
+}
+
+/* -------------------------------------------------------------------------- */
 /* CRM                                                                         */
 /* -------------------------------------------------------------------------- */
 
@@ -374,6 +424,10 @@ export interface AdminUser {
   fullName: string;
   role: AdminRole;
   active: boolean;
+  mustChangePassword: boolean;
+  notificationEmail: string | null;
+  notifyNewInquiry: boolean;
+  notifyReservation: boolean;
   lastLoginAt: string | null;
   createdAt: string;
 }

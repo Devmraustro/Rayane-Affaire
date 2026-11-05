@@ -85,6 +85,7 @@ export function createProperty(payload: PropertyWritePayload): Property {
   const db = getDb();
   return transaction(db, () => {
     const id = randomUUID();
+    assertPublishable('property', id, payload.status);
     const now = new Date().toISOString();
     const communeId = resolveCommuneId(payload.communeSlug);
     const coords = coordinatesOf(payload);
@@ -227,6 +228,7 @@ export function createVehicle(payload: VehicleWritePayload): Vehicle {
   const db = getDb();
   return transaction(db, () => {
     const id = randomUUID();
+    assertPublishable('vehicle', id, payload.status);
     const now = new Date().toISOString();
     const communeId = resolveCommuneId(payload.communeSlug);
     const coords = coordinatesOf(payload);

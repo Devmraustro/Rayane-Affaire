@@ -49,6 +49,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   const session = await getSession();
   if (!session) redirect('/admin/login');
+  if (session.user.mustChangePassword && currentPath !== '/admin/password') {
+    redirect('/admin/password');
+  }
 
   const db = getDb();
   const newInquiries = (
@@ -58,6 +61,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     db
       .prepare(
         `SELECT (SELECT COUNT(*) FROM properties WHERE status='draft')
+              + (SELECT COUNT(*) FROM places WHERE status='draft')
               + (SELECT COUNT(*) FROM vehicles   WHERE status='draft') AS n`,
       )
       .get() as { n: number }

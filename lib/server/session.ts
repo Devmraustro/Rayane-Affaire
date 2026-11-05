@@ -31,6 +31,10 @@ interface SessionRow {
   full_name: string;
   role: AdminRole;
   active: number;
+  must_change_password: number;
+  notification_email: string | null;
+  notify_new_inquiry: number;
+  notify_reservation: number;
 }
 
 function sha256(value: string): string {
@@ -52,6 +56,7 @@ export interface IssuedSession {
   token: string;
   csrfToken: string;
   expiresAt: Date;
+  sessionId: string;
 }
 
 /**
@@ -88,7 +93,7 @@ export function issueSession(
 
   db.prepare('UPDATE admin_users SET last_login_at = ? WHERE id = ?').run(now.toISOString(), userId);
 
-  return { token, csrfToken, expiresAt };
+  return { token, csrfToken, expiresAt, sessionId: id };
 }
 
 /** Session attributes applied to both admin cookies. */
@@ -149,7 +154,8 @@ export function resolveSessionToken(token: string | undefined | null): SessionCo
   const row = db
     .prepare(
       `SELECT s.id, s.user_id, s.csrf_token, s.expires_at,
-              u.email, u.full_name, u.role, u.active
+              u.email, u.full_name, u.role, u.active, u.must_change_password,
+              u.notification_email, u.notify_new_inquiry, u.notify_reservation
          FROM admin_sessions s
          JOIN admin_users u ON u.id = s.user_id
         WHERE s.token_hash = ?`,
@@ -172,6 +178,10 @@ export function resolveSessionToken(token: string | undefined | null): SessionCo
       fullName: row.full_name,
       role: row.role,
       active: true,
+      mustChangePassword: row.must_change_password === 1,
+      notificationEmail: row.notification_email,
+      notifyNewInquiry: row.notify_new_inquiry === 1,
+      notifyReservation: row.notify_reservation === 1,
       lastLoginAt: null,
       createdAt: '',
     },

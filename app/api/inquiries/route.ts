@@ -3,6 +3,7 @@ import { createInquiry } from '@/lib/db/inquiries';
 import { consume, hashClientId } from '@/lib/server/rate-limit';
 import { ok, fail, clientIp, isSameOrigin } from '@/lib/server/api';
 import { RATE_LIMITS } from '@/lib/config';
+import { notifyAdministrators } from '@/lib/server/notifications';
 
 /**
  * POST /api/inquiries — public lead capture.
@@ -56,6 +57,7 @@ export async function POST(request: Request): Promise<Response> {
       ipHash,
       userAgent: request.headers.get('user-agent')?.slice(0, 255) ?? null,
     });
+    await notifyAdministrators('inquiry', 'RAYANE AFFAIRE — nouvelle demande', `Une nouvelle demande ${inquiry.id} est disponible dans /admin/inquiries.`);
     return ok({ received: true, id: inquiry.id });
   } catch (error) {
     console.error('[inquiries] create failed', error);

@@ -83,6 +83,7 @@ export async function POST(request: Request): Promise<Response> {
       email: record.user.email,
       fullName: record.user.fullName,
       role: record.user.role,
+      mustChangePassword: record.user.mustChangePassword,
     },
   });
   // Cookies are serialised on the response rather than via `next/headers` so the

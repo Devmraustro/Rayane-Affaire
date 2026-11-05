@@ -6,6 +6,7 @@ import { defaultPropertyFilters } from '@/lib/db/properties';
 import { defaultVehicleFilters } from '@/lib/db/vehicles';
 import { getVehicleVisibility } from '@/lib/db/settings';
 import { HIDDEN_VEHICLES } from '@/lib/settings';
+import { listPublicPlaces } from '@/lib/db/places';
 
 /**
  * Sitemap built from the live database — only published, real listings are
@@ -34,7 +35,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const rentalEnabled = visibility.rentalEnabled;
   const catalogueReachable = visibility.publicVisible && (rentalEnabled || saleInventory > 0);
 
-  const paths = ['', '/properties', '/map', '/services', '/about', '/contact', '/credits'];
+  const paths = ['', '/properties', '/places', '/map', '/services', '/about', '/contact', '/credits'];
   if (catalogueReachable) paths.splice(2, 0, '/vehicles');
 
   const staticRoutes = paths.map(
@@ -53,6 +54,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     );
     // Passing `rentalEnabled` applies the public projection: with rental off this
     // lists sale and saleable `both` rows only, never rental-only ones.
+    const places = listPublicPlaces({ pageSize: 60, includeDemo: false });
     const vehicles = catalogueReachable
       ? listVehicles(
           { ...defaultVehicleFilters(), pageSize: 60 },
@@ -63,6 +65,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       ...properties.items.map((p) => ({
         url: `${SITE_URL}/properties/${encodeURIComponent(p.slug)}`,
         lastModified: p.createdAt,
+        changeFrequency: 'weekly' as const,
+        priority: 0.7,
+      })),
+      ...places.items.map((place) => ({
+        url: `${SITE_URL}/places/${encodeURIComponent(place.slug)}`,
+        lastModified: place.updatedAt,
         changeFrequency: 'weekly' as const,
         priority: 0.7,
       })),

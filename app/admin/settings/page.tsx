@@ -19,6 +19,8 @@ import {
 import { BRAND } from '@/lib/brand';
 import { SettingSwitch } from '@/components/admin/vehicle-rental-toggle';
 import { formatDate } from '@/lib/format';
+import { MediaCleanup } from '@/components/admin/media-cleanup';
+import { roleSatisfies } from '@/lib/server/authz';
 
 /**
  * Settings.
@@ -55,6 +57,7 @@ export default async function AdminSettingsPage() {
           any effect at all. */}
       <SettingSwitch setting="vehiclePublicVisible" enabled={settings.vehiclePublicVisible} />
       <SettingSwitch setting="vehicleRentalEnabled" enabled={settings.vehicleRentalEnabled} />
+      {session && roleSatisfies(session.user.role, 'manager') && <MediaCleanup />}
 
       <div className="grid gap-5 xl:grid-cols-2">
         {/* Brand */}

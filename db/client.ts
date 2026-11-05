@@ -11,6 +11,7 @@
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync, mkdirSync, existsSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';
+import { bootstrapEphemeralPreview } from './preview-bootstrap';
 
 export type Db = DatabaseSync;
 
@@ -39,6 +40,10 @@ export function getDb(): Db {
   db.exec('PRAGMA busy_timeout = 5000');
   db.exec('PRAGMA synchronous = NORMAL');
   globalForDb.__raDb = db;
+  if (process.env.VERCEL_ENV === 'preview' && process.env.PREVIEW_EPHEMERAL === '1') {
+    applySchema(db);
+    bootstrapEphemeralPreview(db);
+  }
   return db;
 }
 
@@ -57,6 +62,21 @@ export function schemaSql(): string {
 /** Idempotent bootstrap: creates every table/index that does not exist yet. */
 export function applySchema(db: Db = getDb()): void {
   db.exec(schemaSql());
+  // SQLite has no `ADD COLUMN IF NOT EXISTS`. Keep these additive upgrades
+  // idempotent for both a fresh baseline and a pre-003 database; the numbered
+  // migration records the remaining table/CHECK changes exactly once.
+  const columns = new Set(
+    (db.prepare('PRAGMA table_info(admin_users)').all() as { name: string }[]).map((column) => column.name),
+  );
+  const additions: [string, string][] = [
+    ['must_change_password', 'INTEGER NOT NULL DEFAULT 0 CHECK (must_change_password IN (0, 1))'],
+    ['notification_email', 'TEXT'],
+    ['notify_new_inquiry', 'INTEGER NOT NULL DEFAULT 1 CHECK (notify_new_inquiry IN (0, 1))'],
+    ['notify_reservation', 'INTEGER NOT NULL DEFAULT 1 CHECK (notify_reservation IN (0, 1))'],
+  ];
+  for (const [name, definition] of additions) {
+    if (!columns.has(name)) db.exec(`ALTER TABLE admin_users ADD COLUMN ${name} ${definition}`);
+  }
 }
 
 /** Test helper: a fresh in-memory database with the real schema applied. */

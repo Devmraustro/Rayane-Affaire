@@ -4,6 +4,8 @@ import { requireAdmin, HttpError } from '@/lib/server/authz';
 import { credentialsFromRequest } from '@/lib/server/credentials';
 import { ok, fail } from '@/lib/server/api';
 import { recordAudit } from '@/lib/server/audit';
+import { mediaUrlsForEntity } from '@/lib/db/media';
+import { removeStoredFile } from '@/lib/server/upload';
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -65,7 +67,9 @@ export async function DELETE(request: Request, context: Context): Promise<Respon
     return fail('UNAUTHORIZED', 'Authentication required.', 401);
   }
   const { id } = await context.params;
+  const urls = mediaUrlsForEntity('vehicle', id);
   if (!deleteVehicle(id)) return fail('NOT_FOUND', 'Vehicle not found.', 404);
+  for (const url of urls) removeStoredFile(url);
   recordAudit(session, 'vehicle.delete', 'vehicle', id);
   return ok({ deleted: true });
 }

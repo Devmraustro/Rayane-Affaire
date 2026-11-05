@@ -124,6 +124,34 @@ export const propertyWriteSchema = z
 
 export type PropertyWritePayload = z.output<typeof propertyWriteSchema>;
 
+/** Place writes never accept a verification flag. Verification is a separate,
+ * authenticated editor action so geocoder/manual points cannot self-verify. */
+export const placeWriteSchema = z
+  .object({
+    nameFr: z.string().transform(sanitiseText).refine((v) => v.length >= 2 && v.length <= 160, { message: 'admin.validation.titleRequired' }),
+    nameAr: z.string().transform(sanitiseText).refine((v) => v.length >= 2 && v.length <= 160, { message: 'admin.validation.titleRequired' }),
+    descriptionFr: z.string().max(6000).transform(sanitiseText).default(''),
+    descriptionAr: z.string().max(6000).transform(sanitiseText).default(''),
+    addressFr: z.string().max(300).transform(sanitiseText).default(''),
+    addressAr: z.string().max(300).transform(sanitiseText).default(''),
+    communeSlug: z.string().min(1).max(100, { message: 'admin.validation.communeRequired' }),
+    category: z.enum(['landmark','restaurant','cafe','hotel','shopping','service','culture','nature','beach','other']),
+    ...coordinatePair,
+    coordinatePrecision: z.enum(['exact', 'approximate', 'pending']).default('pending'),
+    status: z.enum(['draft', 'published', 'archived']).default('draft'),
+  })
+  .refine((v) => (v.lat == null) === (v.lng == null), {
+    message: 'admin.validation.invalidCoordinate', path: ['lat'],
+  })
+  .refine((v) => v.coordinatePrecision !== 'pending' || (v.lat == null && v.lng == null), {
+    message: 'admin.validation.invalidCoordinate', path: ['coordinatePrecision'],
+  })
+  .refine((v) => (v.lat != null && v.lng != null) || v.coordinatePrecision === 'pending', {
+    message: 'admin.validation.invalidCoordinate', path: ['coordinatePrecision'],
+  });
+
+export type PlaceWritePayload = z.output<typeof placeWriteSchema>;
+
 export const vehicleWriteSchema = z
   .object({
     titleFr: z.string().transform(sanitiseText).refine((v) => v.length >= 3, { message: 'admin.validation.titleRequired' }),
@@ -179,14 +207,20 @@ export function fieldErrors(error: z.ZodError): Record<string, string> {
   return out;
 }
 
+function validDateOnly(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
 export const reservationWriteSchema = z
   .object({
     kind: z.enum(['property', 'vehicle']),
     propertyId: z.string().optional(),
     vehicleId: z.string().optional(),
     customerId: z.string().min(1),
-    startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-    endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    startDate: z.string().refine(validDateOnly, { message: 'form.dateInvalid' }),
+    endDate: z.string().refine(validDateOnly, { message: 'form.dateInvalid' }),
     amount: z.number().int().min(0),
     deposit: z.number().int().min(0).default(0),
     status: z.enum(['pending', 'confirmed', 'active', 'completed', 'cancelled']).default('pending'),
@@ -196,9 +230,13 @@ export const reservationWriteSchema = z
     message: 'form.endBeforeStart',
     path: ['endDate'],
   })
-  .refine((v) => (v.kind === 'property' ? Boolean(v.propertyId) : Boolean(v.vehicleId)), {
+  .refine((v) => (v.kind === 'property' ? Boolean(v.propertyId) && !v.vehicleId : Boolean(v.vehicleId) && !v.propertyId), {
     message: 'admin.validation.referenceTaken',
     path: ['propertyId'],
+  })
+  .refine((v) => v.deposit <= v.amount, {
+    message: 'admin.validation.invalidSetting',
+    path: ['deposit'],
   });
 
 export const customerWriteSchema = z.object({

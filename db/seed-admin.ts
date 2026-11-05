@@ -67,7 +67,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  const user = await createAdminUser({ email, password, fullName, role: 'owner' });
+  const user = await createAdminUser({ email, password, fullName, role: 'owner', mustChangePassword: true });
 
   console.log('✔ Administrator created');
   console.log(`  e-mail : ${user.email}`);

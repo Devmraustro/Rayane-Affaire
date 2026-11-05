@@ -1,0 +1,4 @@
+import Link from 'next/link';
+import { ResetPasswordForm } from '@/components/admin/password-forms';
+export const metadata = { title: 'Réinitialisation du mot de passe', robots: { index: false, follow: false } };
+export default async function ResetPasswordPage({ searchParams }: { searchParams: Promise<{ token?: string }> }) { const token = (await searchParams).token ?? ''; return <main className="grid min-h-dvh place-items-center bg-sand-50 px-5 py-12"><div className="w-full max-w-md rounded-2xl border border-sand-200 bg-white p-6"><h1 className="text-2xl">Nouveau mot de passe · كلمة مرور جديدة</h1><div className="mt-5">{token ? <ResetPasswordForm token={token} /> : <p role="alert" className="text-sm text-danger">Lien invalide. · رابط غير صالح.</p>}</div><Link href="/admin/login" className="mt-5 inline-flex text-xs text-gold-700 hover:underline">Connexion · تسجيل الدخول</Link></div></main>; }

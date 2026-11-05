@@ -3,11 +3,13 @@
 Plateforme immobilière et automobile pour **Béjaïa et les communes environnantes**.
 Site public bilingue (français / العربية), back-office authentifié, base de données réelle.
 
-> **État du projet :** l'application est fonctionnelle et testée localement (voir
-> `docs/TESTING_REPORT.md`). Elle n'est **pas encore déployée** et **ne contient
-> aucune annonce réelle** : les fiches, les photos, les coordonnées GPS et les
-> informations de contact doivent être fournies par le client. Tout ce qui est
-> encore à faire est listé dans `docs/OPENCODE_HANDOFF.md`.
+> **État du projet :** l'application est vérifiée par tests, build et parcours
+> navigateurs desktop/mobile (voir `docs/TESTING_REPORT.md`). Elle n'est **pas en
+> production** et ne contient **aucune annonce réelle**. Une préproduction isolée
+> utilise uniquement des données et images synthétiques ; ses identifiants sont
+> transmis séparément. Les fiches, photos, positions GPS et contacts réels doivent
+> être fournis par le client. Les travaux restants sont dans
+> `docs/OPENCODE_HANDOFF.md` et l'état de publication dans `docs/FINAL_REPORT.md`.
 
 ---
 
@@ -35,7 +37,9 @@ Site public bilingue (français / العربية), back-office authentifié, bas
 | `/properties/[slug]` | Galerie, caractéristiques, carte avec niveau de précision, formulaire de contact relié à l'annonce |
 | `/vehicles` | Catalogue véhicules (catégorie, marque, carburant, boîte, places, prix), uniquement lorsque la visibilité publique est activée dans les paramètres |
 | `/vehicles/[slug]` | Fiche détaillée, équipements, contact (404 tant que la section est masquée) |
-| `/map` | Carte Leaflet : marqueurs uniquement pour les positions vérifiées, légende de précision, compteur de biens non localisables |
+| `/places` | Catalogue bilingue des lieux et services locaux : type, commune, adresse, horaires, contact et carte |
+| `/places/[slug]` | Fiche lieu avec galerie attribuée, adresse, précision de position et itinéraire adapté |
+| `/map` | Carte Leaflet : biens et lieux ; marqueurs de biens uniquement pour positions vérifiées, lieux approximatifs explicitement signalés |
 | `/services`, `/about`, `/contact` | Pages éditoriales, coordonnées issues de la configuration |
 | `/credits` | Crédits et sources : attribution OpenStreetMap/ODbL, origine des photographies, statut des visuels de marque |
 
@@ -96,10 +100,12 @@ change. Chaque changement est journalisé dans le journal d'audit.
 | Vue d'ensemble | 6 indicateurs principaux + 4 secondaires, tous calculés par `COUNT`/`SUM` sur la base |
 | Biens | Création, édition, publication (*brouillon / publié / archivé*), suppression (rôle manager+), référence `RA-P-####` générée |
 | Véhicules | Idem, référence `RA-V-####` |
-| Médias | Upload multipart validé par *magic bytes* (JPEG/PNG/WebP/AVIF), 5 Mo max, noms UUID ; EXIF/GPS, XMP, IPTC, commentaires JPEG et texte PNG retirés avant écriture ; crédit, licence et texte alternatif bilingue **exigés par le serveur** |
+| Lieux | Création/édition bilingue, types et communes, publication, prévisualisation privée, adresse, horaires et contact ; géocodage authentifié et/ou point manuel approximatif, vérification exacte explicite |
+| Comptes | Propriétaire/manager/éditeur, activation, rôles protégés, changement forcé, réinitialisation par lien à usage unique (30 min), révocation des sessions et préférences de notification |
+| Médias | Upload multipart validé par *magic bytes* (JPEG/PNG/WebP/AVIF), 5 Mo max, noms UUID ; EXIF/GPS, XMP, IPTC, commentaires JPEG et texte PNG retirés avant écriture ; crédit, licence et texte alternatif bilingue **exigés par le serveur** ; réordonnancement transactionnel et suppression fichier + ligne |
 | Demandes | File de travail avec statuts (nouveau → contacté → qualifié → gagné/perdu/spam) et notes internes |
 | Clients | Liste issue des réservations réelles |
-| Réservations | Montants, acomptes, statuts |
+| Réservations | Création/édition, client dédupliqué, dates strictes, refus des chevauchements actifs, montants/acomptes, statuts et suppression manager+ ; notifications seulement pour les destinataires ayant opté in |
 | Calendrier | Grille mensuelle construite à partir des réservations |
 | Finances | Chiffre d'affaires par période, hors données de démonstration |
 | Paramètres | Interrupteur principal de **visibilité publique des véhicules** (défaut masqué, fail-closed) + réglage secondaire **location de véhicules**, tous deux persistés ; état de la configuration, communes, environnement, journal d'audit |
@@ -128,7 +134,7 @@ npm install
 cp .env.example .env.local      # renseigner SESSION_SECRET et NEXT_PUBLIC_SITE_URL
 openssl rand -base64 48         # valeur à mettre dans SESSION_SECRET
 
-npm run db:migrate              # crée data/rayane.db (12 tables, 11 communes)
+npm run db:migrate              # crée data/rayane.db (15 tables, 11 communes)
 npm run db:seed:admin           # crée le premier compte propriétaire
 npm run dev                     # http://localhost:3000
 ```
@@ -191,8 +197,11 @@ Liste complète et commentée : [`docs/ENVIRONMENT_VARIABLES.md`](docs/ENVIRONME
 | `npm run db:migrate` | Applique le schéma (`-- --reset` repart de zéro) |
 | `npm run db:seed:admin` | Crée un administrateur |
 | `npm run db:seed:demo` | Données de démonstration (`-- --purge` pour les retirer) |
-| `npm run smoke -- https://domaine` | Vérifications post-déploiement (17 contrôles) |
-| `npm run audit:gate` | Bloque toute vulnérabilité haute/critique non documentée |
+| `npm run smoke -- https://domaine` | Vérifications post-déploiement (19 contrôles) |
+| `npm run test:e2e` | 6 parcours Playwright exécutés sur desktop et mobile (12 tests) contre un build de production |
+| `npm run e2e:setup` | Base, comptes, images et uploads E2E isolés (jamais la base client) |
+| `npm run prepare:chromium` | Prépare le navigateur compatible avec l'environnement local |
+| `npm run audit:gate` | Bloque toute vulnérabilité haute/critique non documentée ; aucune exception active actuellement |
 
 ---
 

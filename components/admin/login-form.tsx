@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input, Field } from '@/components/ui/input';
 
 export function LoginForm({ configured }: { configured: boolean }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const router = useRouter();
   const [error, setError] = React.useState('');
   const [submitting, setSubmitting] = React.useState(false);
@@ -30,6 +30,7 @@ export function LoginForm({ configured }: { configured: boolean }) {
       });
       const payload = (await response.json()) as {
         ok: boolean;
+        data?: { user?: { mustChangePassword?: boolean } };
         error?: { code?: string; message?: string };
       };
 
@@ -47,7 +48,7 @@ export function LoginForm({ configured }: { configured: boolean }) {
       }
 
       // Full refresh so server components re-read the new session cookie.
-      router.replace('/admin');
+      router.replace(payload.data?.user?.mustChangePassword ? '/admin/password' : '/admin');
       router.refresh();
     } catch {
       setError(t.common.error);
@@ -135,6 +136,10 @@ npm run db:seed:admin`}
         </Button>
       </form>
 
+      <Link href="/forgot-password" className="mt-4 inline-flex text-xs font-medium text-gold-700 hover:underline">
+        {locale === 'ar' ? 'نسيت كلمة المرور؟' : 'Mot de passe oublié ?'}
+      </Link>
+      <br />
       <Link
         href="/"
         className="mt-6 inline-flex items-center gap-1.5 text-xs font-medium text-ink-500 hover:text-gold-700"

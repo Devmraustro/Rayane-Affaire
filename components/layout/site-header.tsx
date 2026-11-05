@@ -11,6 +11,7 @@ import { useI18n } from '@/lib/i18n';
 import { PHONE_NUMBER, WHATSAPP_NUMBER } from '@/lib/config';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { placesText } from '@/lib/i18n/place-copy';
 
 /**
  * Site header.
@@ -40,10 +41,13 @@ export function SiteHeader({
   hasSaleInventory?: boolean;
 }) {
   const { t, locale } = useI18n();
-  const navItems = React.useMemo(
-    () => primaryNavFor({ vehiclePublicVisible, rentalEnabled, hasSaleInventory }),
-    [vehiclePublicVisible, rentalEnabled, hasSaleInventory],
-  );
+  const navItems = React.useMemo(() => {
+    const items = primaryNavFor({ vehiclePublicVisible, rentalEnabled, hasSaleInventory })
+      .map((item) => ({ href: item.href, label: t.nav[item.labelKey] }));
+    const propertyIndex = items.findIndex((item) => item.href === '/properties');
+    items.splice(propertyIndex + 1, 0, { href: '/places', label: placesText(locale).nav });
+    return items;
+  }, [vehiclePublicVisible, rentalEnabled, hasSaleInventory, t, locale]);
   const pathname = usePathname();
   const [open, setOpen] = React.useState(false);
   const [scrolled, setScrolled] = React.useState(false);
@@ -116,7 +120,7 @@ export function SiteHeader({
                         : 'text-ink-500 hover:text-ink-900',
                   )}
                 >
-                  {t.nav[item.labelKey]}
+                  {item.label}
                   {active && (
                     <span
                       aria-hidden="true"
@@ -203,7 +207,7 @@ export function SiteHeader({
                     active ? 'text-ink-900' : 'text-ink-600',
                   )}
                 >
-                  {t.nav[item.labelKey]}
+                  {item.label}
                   {active && <span aria-hidden="true" className="size-1.5 rounded-full bg-gold-500" />}
                 </Link>
               );

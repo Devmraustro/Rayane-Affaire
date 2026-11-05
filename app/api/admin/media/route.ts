@@ -1,7 +1,7 @@
 import { requireAdmin, HttpError } from '@/lib/server/authz';
 import { credentialsFromRequest } from '@/lib/server/credentials';
-import { storeImage, UploadError } from '@/lib/server/upload';
-import { addMedia, deleteMedia } from '@/lib/db/media';
+import { storeImage, UploadError, removeStoredFile } from '@/lib/server/upload';
+import { addMedia, deleteMedia, getMedia, reorderMediaItems, MediaError } from '@/lib/db/media';
 import { getDb } from '@/db/client';
 import { consume, hashClientId } from '@/lib/server/rate-limit';
 import { clientIp, ok, fail } from '@/lib/server/api';
@@ -46,8 +46,8 @@ export async function POST(request: Request): Promise<Response> {
   const sourceUrl = String(formData.get('sourceUrl') ?? '').slice(0, 500) || null;
   const license = String(formData.get('license') ?? '').slice(0, 120) || null;
 
-  if (entityType !== 'property' && entityType !== 'vehicle') {
-    return fail('VALIDATION', 'entityType must be property or vehicle.', 422);
+  if (entityType !== 'property' && entityType !== 'vehicle' && entityType !== 'place') {
+    return fail('VALIDATION', 'entityType must be property, vehicle or place.', 422);
   }
   if (!/^[a-f0-9-]{36}$/.test(entityId)) {
     return fail('VALIDATION', 'Invalid entityId.', 422);
@@ -55,7 +55,7 @@ export async function POST(request: Request): Promise<Response> {
 
   // Ownership check: a media row may only be attached to a listing that exists,
   // otherwise an arbitrary UUID could be used as an orphaned file store.
-  const table = entityType === 'property' ? 'properties' : 'vehicles';
+  const table = entityType === 'property' ? 'properties' : entityType === 'vehicle' ? 'vehicles' : 'places';
   const exists = getDb().prepare(`SELECT 1 AS ok FROM ${table} WHERE id = ?`).get(entityId);
   if (!exists) return fail('NOT_FOUND', 'Listing not found.', 404);
 
@@ -122,9 +122,38 @@ export async function DELETE(request: Request): Promise<Response> {
   const id = new URL(request.url).searchParams.get('id');
   if (!id) return fail('VALIDATION', 'Missing media id.', 422);
 
+  const media = getMedia(id);
+  if (!media) return fail('NOT_FOUND', 'Media not found.', 404);
   const removed = deleteMedia(id);
   if (!removed) return fail('NOT_FOUND', 'Media not found.', 404);
+  removeStoredFile(media.url);
 
   recordAudit(session, 'media.delete', 'media', id);
   return ok({ deleted: true });
+}
+
+/** PATCH /api/admin/media — atomically reorder a complete gallery. */
+export async function PATCH(request: Request): Promise<Response> {
+  let session;
+  try { session = await requireAdmin('editor', credentialsFromRequest(request)); }
+  catch (error) {
+    if (error instanceof HttpError) return fail(error.code, error.message, error.status);
+    return fail('UNAUTHORIZED', 'Authentication required.', 401);
+  }
+  let body: unknown;
+  try { body = await request.json(); } catch { return fail('BAD_REQUEST', 'Invalid JSON body.', 400); }
+  const input = body as { entityType?: unknown; entityId?: unknown; mediaIds?: unknown };
+  const entityType = input.entityType;
+  const entityId = input.entityId;
+  if ((entityType !== 'property' && entityType !== 'vehicle' && entityType !== 'place') || typeof entityId !== 'string' || !/^[a-f0-9-]{36}$/.test(entityId) || !Array.isArray(input.mediaIds) || input.mediaIds.length > 100 || input.mediaIds.some((id) => typeof id !== 'string' || !/^[a-f0-9-]{36}$/.test(id))) {
+    return fail('VALIDATION', 'Invalid media order payload.', 422);
+  }
+  try {
+    reorderMediaItems(entityType, entityId, input.mediaIds as string[]);
+    recordAudit(session, 'media.reorder', entityType, entityId, { count: input.mediaIds.length });
+    return ok({ reordered: true, mediaIds: input.mediaIds });
+  } catch (error) {
+    if (error instanceof MediaError) return fail(error.code, error.message, 422);
+    return fail('SERVER_ERROR', 'Could not reorder media.', 500);
+  }
 }

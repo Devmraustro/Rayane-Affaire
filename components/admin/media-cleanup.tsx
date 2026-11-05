@@ -1,0 +1,6 @@
+'use client';
+import * as React from 'react';
+import { useI18n } from '@/lib/i18n';
+import { adminFetch } from '@/lib/admin-client';
+import { Button } from '@/components/ui/button';
+export function MediaCleanup() { const { locale } = useI18n(); const [result, setResult] = React.useState<{ filesRemoved: number; rowsRemoved: number } | null>(null); const [busy, setBusy] = React.useState(false); const run = async () => { setBusy(true); const response = await adminFetch<{ filesRemoved: number; rowsRemoved: number }>('/api/admin/media/cleanup', { method: 'POST', body: {} }); setBusy(false); if (response.ok && response.data) setResult(response.data); }; return <section className="rounded-2xl border border-sand-200 bg-white p-5"><h2 className="text-sm font-semibold">Nettoyage des médias · تنظيف الوسائط</h2><p className="mt-1 text-xs leading-5 text-ink-500">Supprime uniquement les fichiers UUID orphelins et les lignes sans annonce parente. · يحذف فقط الملفات والسجلات اليتيمة.</p><Button type="button" variant="outline" size="sm" className="mt-3" disabled={busy} onClick={() => void run()}>{locale === 'ar' ? 'تنظيف الآن' : 'Nettoyer maintenant'}</Button>{result && <p role="status" className="mt-3 text-xs text-success">{result.filesRemoved} fichiers · {result.rowsRemoved} lignes</p>}</section>; }

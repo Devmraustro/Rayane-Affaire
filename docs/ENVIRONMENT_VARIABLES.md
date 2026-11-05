@@ -96,9 +96,13 @@ Cette valeur ne doit **jamais** être commitée, ni placée dans une variable
 | `DATABASE_PATH` | Non | `./data/rayane.db` | Fichier SQLite. Le dossier doit exister ou être créable, et être **inscriptible** par le processus. |
 | `UPLOAD_DIR` | Non | `./data/uploads` | Dossier des photographies téléversées. À sauvegarder avec la base. |
 
-Sur un hébergeur à système de fichiers éphémère (Vercel, par exemple), ces deux
-chemins doivent pointer vers un volume persistant — sinon **toutes les données
-sont perdues au redéploiement**. Voir `docs/DEPLOYMENT_GUIDE.md` §2.
+Sur un hébergeur à système de fichiers éphémère, un chemin local ne constitue
+**pas** un stockage durable. Vercel isole en outre les fonctions et ne garantit
+pas le partage de `/tmp` : ni SQLite ni les uploads locaux n'y conviennent pour
+des données client. Utiliser un disque réellement persistant sur un serveur
+unique, ou migrer vers PostgreSQL + stockage objet. Le bootstrap Vercel limité à
+`PREVIEW_EPHEMERAL=1` sert uniquement aux contrôles jetables, jamais à la
+production. Voir `docs/DEPLOYMENT_GUIDE.md`.
 
 ## 5. Scripts de maintenance
 
@@ -113,17 +117,61 @@ Lues uniquement par `npm run db:seed:admin` :
 Ces variables ne doivent pas être stockées dans un fichier `.env` de production
 permanent : les passer sur la ligne de commande, puis les oublier.
 
-## 6. Variables fournies par la plateforme
+## 6. E-mail transactionnel
+
+| Variable | Défaut | Rôle |
+| --- | --- | --- |
+| `EMAIL_DELIVERY` | vide = désactivé | `resend` pour le fournisseur réel ; `console` uniquement hors production |
+| `RESEND_API_KEY` | vide | Secret Resend, obligatoire avec `EMAIL_DELIVERY=resend` |
+| `EMAIL_FROM` | vide | Expéditeur vérifié, obligatoire avec Resend |
+| `EMAIL_REPLY_TO` | vide | Adresse de réponse facultative |
+
+Le backend Resend n'est considéré configuré que si la clé et l'expéditeur sont
+présents. Les liens de réinitialisation sont à usage unique, hachés en base et
+expirent après 30 minutes. Les notifications de demandes/réservations ne sont
+envoyées qu'aux comptes actifs ayant activé la catégorie correspondante. Un échec
+d'e-mail ne fait pas échouer la création d'une demande ; il est journalisé côté
+serveur. **Aucune livraison réelle n'a été configurée dans la préproduction.**
+
+## 7. Géocodage
+
+| Variable | Défaut | Rôle |
+| --- | --- | --- |
+| `GEOCODER_BASE_URL` | `https://nominatim.openstreetmap.org/search` | Endpoint compatible Nominatim, appelé côté serveur |
+| `GEOCODER_USER_AGENT` | identifiant de préproduction | Identification de l'application ; à personnaliser en production |
+| `GEOCODER_EMAIL` | vide | Contact recommandé/requis selon la politique du service |
+| `GEOCODER_COUNTRY_CODES` | `dz` | Limite pays de la recherche |
+
+La route `/api/admin/geocode` exige une session, applique une limitation de débit,
+valide la réponse et ne persiste rien automatiquement. Tout résultat reste
+**approximatif et non vérifié** ; une navigation exacte exige la vérification
+explicite d'un point manuel.
+
+## 8. Prévisualisation isolée
+
+| Variable | Valeur | Effet |
+| --- | --- | --- |
+| `APP_ENV` | `preview` | Bandeau visible et refus d'indexation ; ne pas utiliser en production |
+| `VERCEL_ENV` + `PREVIEW_EPHEMERAL` | `preview` + `1` | Autorisent ensemble le bootstrap jetable Vercel |
+| `PREVIEW_ADMIN_EMAIL` / `PREVIEW_ADMIN_PASSWORD` | secrets synthétiques | Compte owner temporaire avec changement de mot de passe forcé |
+| `PREVIEW_ADMIN_NAME` | facultatif | Nom affiché du compte jetable |
+
+Le bootstrap échoue fermé hors Vercel preview, si `PREVIEW_EPHEMERAL` manque ou
+si des annonces, lieux ou clients existent. Il ne crée aucune donnée client et ne
+résout pas la persistance. Ne jamais renseigner `PREVIEW_EPHEMERAL=1` sur une
+base de production.
+
+## 9. Variables fournies par la plateforme
 
 | Variable | Fournie par | Usage |
 | --- | --- | --- |
 | `NODE_ENV` | Next.js / hébergeur | `production` active HSTS, cookies `Secure`, CSP à nonce, refus de `db:reset` |
 | `PORT` | Hébergeur | Port d'écoute de `next start` |
+| `VERCEL_ENV` | Vercel | Avec le garde-fou explicite ci-dessus, identifie une preview jetable |
 
-L'application n'utilise **aucune** autre variable et **aucune** clé d'API tierce :
-pas de service de paiement, pas de service de carte payant (tuiles
-OpenStreetMap), pas de service d'e-mail (à ajouter si les notifications sont
-souhaitées).
+Il n'y a ni paiement ni carte payante. Les tuiles et le géocodage utilisent par
+défaut OpenStreetMap/Nominatim, dont les politiques d'usage et limites doivent
+être respectées ; un service dédié peut être configuré pour la production.
 
 ## 7. Récapitulatif minimal pour démarrer en production
 

@@ -9,6 +9,8 @@ import { requireAdmin, HttpError } from '@/lib/server/authz';
 import { credentialsFromRequest } from '@/lib/server/credentials';
 import { ok, fail } from '@/lib/server/api';
 import { recordAudit } from '@/lib/server/audit';
+import { mediaUrlsForEntity } from '@/lib/db/media';
+import { removeStoredFile } from '@/lib/server/upload';
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -77,8 +79,10 @@ export async function DELETE(request: Request, context: Context): Promise<Respon
   }
 
   const { id } = await context.params;
+  const urls = mediaUrlsForEntity('property', id);
   const deleted = deleteProperty(id);
   if (!deleted) return fail('NOT_FOUND', 'Property not found.', 404);
+  for (const url of urls) removeStoredFile(url);
   recordAudit(session, 'property.delete', 'property', id);
   return ok({ deleted: true });
 }

@@ -24,7 +24,7 @@ export interface CommuneRow {
 
 export interface MediaRow {
   id: string;
-  entity_type: 'property' | 'vehicle';
+  entity_type: 'property' | 'vehicle' | 'place';
   entity_id: string;
   url: string;
   alt_fr: string;

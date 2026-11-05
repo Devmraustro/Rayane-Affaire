@@ -3,6 +3,8 @@ import { getDb } from '@/db/client';
 import { randomUUID } from 'node:crypto';
 import type { Reservation, ReservationStatus } from '@/types';
 
+export class ReservationError extends Error { constructor(public code: string, message: string) { super(message); } }
+
 interface ReservationRow {
   id: string;
   reference: string;
@@ -118,6 +120,13 @@ export function createReservation(input: {
   const db = getDb();
   const id = randomUUID();
   const now = new Date().toISOString();
+  const status = input.status ?? 'pending';
+  if (['pending','confirmed','active'].includes(status)) {
+    const itemId = input.kind === 'property' ? input.propertyId : input.vehicleId;
+    if (itemId && hasOverlap(input.kind, itemId, input.startDate, input.endDate)) {
+      throw new ReservationError('RESERVATION_OVERLAP', 'The listing already has an active reservation for this period.');
+    }
+  }
 
   let titleFr = '';
   let titleAr = '';
@@ -166,7 +175,7 @@ export function createReservation(input: {
     input.endDate,
     input.amount,
     input.deposit,
-    input.status ?? 'pending',
+    status,
     input.notes ?? null,
     input.isDemo ? 1 : 0,
     now,
@@ -180,6 +189,14 @@ export function updateReservationStatus(
   id: string,
   status: ReservationStatus,
 ): Reservation | null {
+  const current = getReservation(id);
+  if (!current) return null;
+  if (['pending','confirmed','active'].includes(status)) {
+    const itemId = current.kind === 'property' ? current.propertyId : current.vehicleId;
+    if (itemId && hasOverlap(current.kind, itemId, current.startDate, current.endDate, id)) {
+      throw new ReservationError('RESERVATION_OVERLAP', 'The listing already has an active reservation for this period.');
+    }
+  }
   getDb()
     .prepare('UPDATE reservations SET status = ?, updated_at = ? WHERE id = ?')
     .run(status, new Date().toISOString(), id);
@@ -192,14 +209,20 @@ export function hasOverlap(
   itemId: string,
   startDate: string,
   endDate: string,
+  excludeReservationId?: string,
 ): boolean {
   const column = kind === 'property' ? 'property_id' : 'vehicle_id';
   const row = getDb()
     .prepare(
       `SELECT COUNT(*) AS n FROM reservations
        WHERE ${column} = ? AND status IN ('pending','confirmed','active')
-         AND NOT (end_date < ? OR start_date > ?)`,
+         AND NOT (end_date < ? OR start_date > ?)
+         AND (? IS NULL OR id <> ?)`,
     )
-    .get(itemId, startDate, endDate) as { n: number };
+    .get(itemId, startDate, endDate, excludeReservationId ?? null, excludeReservationId ?? null) as { n: number };
   return row.n > 0;
+}
+
+export function deleteReservation(id: string): boolean {
+  return getDb().prepare('DELETE FROM reservations WHERE id = ?').run(id).changes > 0;
 }

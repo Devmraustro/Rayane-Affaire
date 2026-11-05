@@ -42,8 +42,12 @@ export function roleSatisfies(role: AdminRole, minRole: AdminRole): boolean {
 export function assertSession(
   session: SessionContext | null,
   minRole: AdminRole = 'editor',
+  allowPasswordChange = false,
 ): SessionContext {
   if (!session) throw new HttpError(401, 'UNAUTHORIZED', 'Authentication required.');
+  if (session.user.mustChangePassword && !allowPasswordChange) {
+    throw new HttpError(403, 'PASSWORD_CHANGE_REQUIRED', 'Change the temporary password before using the administration.');
+  }
   if (!roleSatisfies(session.user.role, minRole)) {
     throw new HttpError(403, 'FORBIDDEN', 'Insufficient role.');
   }
@@ -70,11 +74,12 @@ export interface ExplicitCredentials {
 export async function requireSession(
   minRole: AdminRole = 'editor',
   credentials?: ExplicitCredentials,
+  options: { allowPasswordChange?: boolean } = {},
 ): Promise<SessionContext> {
   const session = credentials
     ? resolveSessionToken(credentials.sessionToken)
     : await getSession();
-  return assertSession(session, minRole);
+  return assertSession(session, minRole, options.allowPasswordChange ?? false);
 }
 
 /** Verifies the double-submit CSRF token for mutating requests. */

@@ -13,6 +13,7 @@ import {
   SOCIAL_LINKS,
 } from '@/lib/config';
 import type { Commune } from '@/types';
+import { placesText } from '@/lib/i18n/place-copy';
 
 /**
  * Footer.
@@ -101,6 +102,7 @@ export function SiteFooter({
                   </Link>
                 </li>
               ))}
+              <li><Link href="/places" className="text-sm text-white/60 transition-colors hover:text-white">{placesText(locale).nav}</Link></li>
             </ul>
           </nav>
 

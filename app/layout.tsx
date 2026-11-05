@@ -72,11 +72,13 @@ export async function generateMetadata(): Promise<Metadata> {
       title,
       description,
     },
-    robots: {
-      index: true,
-      follow: true,
-      googleBot: { index: true, follow: true, 'max-image-preview': 'large' },
-    },
+    robots: process.env.APP_ENV === 'preview'
+      ? { index: false, follow: false, nocache: true, googleBot: { index: false, follow: false } }
+      : {
+          index: true,
+          follow: true,
+          googleBot: { index: true, follow: true, 'max-image-preview': 'large' },
+        },
     icons: {
       icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
     },
@@ -146,6 +148,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang={locale} dir={dir} nonce={nonce} suppressHydrationWarning>
       <body className="min-h-dvh bg-sand-50">
+        {process.env.APP_ENV === 'preview' && (
+          <div role="note" className="bg-warning-soft px-4 py-2 text-center text-2xs font-semibold text-warning">
+            {locale === 'ar'
+              ? 'معاينة معزولة · بيانات تجريبية فقط · لا توجد بيانات عملاء'
+              : 'PRÉPRODUCTION ISOLÉE · Données de test uniquement · aucune donnée client'}
+          </div>
+        )}
         <a href="#main" className="skip-link">
           {locale === 'ar' ? 'تخطٍ إلى المحتوى' : 'Aller au contenu'}
         </a>

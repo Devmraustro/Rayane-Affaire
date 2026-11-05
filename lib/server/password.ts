@@ -22,6 +22,12 @@ const scrypt = promisify(scryptCb) as (
  */
 const PARAMS = { N: 1 << 15, r: 8, p: 1, keylen: 64 } as const;
 
+/** One-time credentials for owner-provisioned accounts. Returned once by the
+ * API, never persisted in plaintext or included in audit details. */
+export function temporaryPassword(): string {
+  return `Ra9-${randomBytes(15).toString('base64url')}-zA7`;
+}
+
 export async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16);
   const hash = await scrypt(password.normalize('NFKC'), salt, PARAMS.keylen, {

@@ -1,9 +1,9 @@
 # Guide de déploiement
 
-> **Statut : aucun déploiement n'a été effectué.** Ce guide décrit la procédure
-> validée localement (build de production réussi) mais **non exécutée en
-> production**, faute d'accès serveur et de nom de domaine. Rien dans ce document
-> ne doit être lu comme une confirmation de mise en ligne.
+> **Statut : aucune mise en production n'est autorisée ni effectuée.** Une
+> préproduction isolée peut être publiée pour revue client avec des données
+> synthétiques ; son URL et les contrôles effectivement exécutés sont consignés
+> dans `docs/FINAL_REPORT.md`. Le stockage local de cette preview n'est pas durable.
 
 ---
 
@@ -15,7 +15,9 @@ L'application a besoin de **deux éléments persistants** :
 2. un dossier de photographies (`UPLOAD_DIR`).
 
 Sur une plateforme à système de fichiers éphémère (Vercel, Netlify, Cloudflare
-Pages), ces deux chemins sont **effacés à chaque déploiement**. Il faut donc :
+Pages), ces deux chemins sont **effacés à chaque déploiement**. Sur Vercel, les
+fonctions peuvent aussi recevoir des systèmes de fichiers distincts : `/tmp` ne
+garantit ni partage ni persistance entre deux requêtes. Il faut donc :
 
 - soit un hébergeur avec disque persistant (VPS, Railway avec volume, Fly.io avec
   volume, Render avec disque, Docker auto-hébergé) ;
@@ -38,6 +40,43 @@ complexité maîtrisés, données en Europe/Algérie selon l'hébergeur choisi.
 | Système | Linux (testé), macOS |
 | Domaine | ex. `rayane-affaire.dz` avec DNS pointant vers le serveur |
 | Certificat TLS | Let's Encrypt (Certbot) ou certificat de l'hébergeur |
+
+### 2.1 Preview Vercel jetable — limites strictes
+
+Le projet `rayane-affaire-preview` est distinct de toute production. Le bootstrap
+de `db/preview-bootstrap.ts` n'est exécuté que si **les deux** conditions suivantes
+sont réunies : `VERCEL_ENV=preview` et `PREVIEW_EPHEMERAL=1`. Il exige une base
+vide de biens, véhicules, lieux et clients, crée les 11 communes, les réglages et
+les comptes synthétiques, puis impose le changement du mot de passe owner. Il ne
+crée aucune annonce ou donnée client.
+
+Variables minimales de cette preview :
+
+```dotenv
+APP_ENV=preview
+PREVIEW_EPHEMERAL=1
+SESSION_SECRET=<secret aléatoire propre à la preview>
+DATABASE_PATH=/tmp/rayane-affaire-preview/rayane.db
+UPLOAD_DIR=/tmp/rayane-affaire-preview/uploads
+PREVIEW_ADMIN_EMAIL=<adresse synthétique>
+PREVIEW_ADMIN_PASSWORD=<mot de passe initial fort, transmis hors Git>
+PREVIEW_ADMIN_NAME=Preview Owner
+EMAIL_DELIVERY=
+```
+
+`APP_ENV=preview` affiche un bandeau et fait répondre `Disallow: /` à robots.txt.
+La protection Vercel Authentication/SSO doit être désactivée **uniquement sur ce
+projet synthétique** si une revue publique est demandée ; vérifier l'URL depuis un
+client externe non authentifié. Ne jamais désactiver cette protection sur un projet
+contenant des données réelles.
+
+**Limite bloquante pour la production :** SQLite et les uploads sous `/tmp` sont
+éphémères et ne sont pas fiablement partagés entre fonctions. Une création peut
+réussir puis être absente d'une requête suivante ; un déploiement ou une mise en
+veille peut tout effacer. Cette preview sert aux smoke checks publics et à la
+démonstration des limites, pas à la gestion durable du contenu. Pour une preview
+CRUD persistante, utiliser le serveur Arena à disque persistant ou un VPS avec
+volume ; pour la production serverless, migrer d'abord vers PostgreSQL + objet.
 
 ---
 

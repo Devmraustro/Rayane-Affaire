@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Image from 'next/image';
-import { Upload, Trash2, Loader2, GripVertical } from 'lucide-react';
+import { Upload, Trash2, Loader2, GripVertical, ArrowUp, ArrowDown } from 'lucide-react';
 import type { MediaItem } from '@/types';
 import { useI18n } from '@/lib/i18n';
 import { adminUpload, adminFetch } from '@/lib/admin-client';
@@ -24,7 +24,7 @@ export function MediaManager({
   entityId,
   initial,
 }: {
-  entityType: 'property' | 'vehicle';
+  entityType: 'property' | 'vehicle' | 'place';
   entityId: string | null;
   initial: MediaItem[];
 }) {
@@ -126,6 +126,43 @@ export function MediaManager({
     toast.success(t.admin.saved);
   };
 
+  const saveOrder = async (next: MediaItem[]) => {
+    if (!entityId) return;
+    const previous = items;
+    setItems(next.map((item, index) => ({ ...item, sortOrder: index })));
+    const result = await adminFetch('/api/admin/media', {
+      method: 'PATCH',
+      body: { entityType, entityId, mediaIds: next.map((item) => item.id) },
+    });
+    if (!result.ok) {
+      setItems(previous);
+      toast.error(t.common.error);
+      return;
+    }
+    toast.success(t.admin.saved);
+  };
+
+  const move = async (id: string, direction: -1 | 1) => {
+    const from = items.findIndex((item) => item.id === id);
+    const to = from + direction;
+    if (from < 0 || to < 0 || to >= items.length) return;
+    const next = [...items];
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item!);
+    await saveOrder(next);
+  };
+
+  const drop = async (targetId: string, draggedId: string) => {
+    if (targetId === draggedId) return;
+    const from = items.findIndex((item) => item.id === draggedId);
+    const to = items.findIndex((item) => item.id === targetId);
+    if (from < 0 || to < 0) return;
+    const next = [...items];
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item!);
+    await saveOrder(next);
+  };
+
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-dashed border-sand-300 bg-sand-50 p-4">
@@ -206,6 +243,12 @@ export function MediaManager({
           {items.map((item) => (
             <li
               key={item.id}
+              data-testid="media-item"
+              data-media-id={item.id}
+              draggable
+              onDragStart={(event) => event.dataTransfer.setData('text/plain', item.id)}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => { event.preventDefault(); void drop(item.id, event.dataTransfer.getData('text/plain')); }}
               className="group relative overflow-hidden rounded-xl border border-sand-200 bg-white"
             >
               <div className="relative aspect-[4/3]">
@@ -220,17 +263,21 @@ export function MediaManager({
               </div>
               <div className="flex items-center justify-between gap-1 px-2 py-1.5">
                 <span className="inline-flex items-center gap-1 text-2xs text-ink-400">
-                  <GripVertical aria-hidden="true" className="size-3" />
+                  <GripVertical aria-hidden="true" className="size-3 cursor-grab" />
                   {item.sortOrder + 1}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => void remove(item.id)}
-                  aria-label={t.admin.delete}
-                  className="grid size-6 place-items-center rounded-md text-danger hover:bg-danger-soft"
-                >
-                  <Trash2 className="size-3.5" />
-                </button>
+                <div className="flex items-center gap-0.5">
+                  <button type="button" disabled={item.sortOrder === 0} onClick={() => void move(item.id, -1)} aria-label={`${item.id} up`} className="grid size-6 place-items-center rounded-md text-ink-500 hover:bg-sand-100 disabled:opacity-30"><ArrowUp className="size-3.5" /></button>
+                  <button type="button" disabled={item.sortOrder === items.length - 1} onClick={() => void move(item.id, 1)} aria-label={`${item.id} down`} className="grid size-6 place-items-center rounded-md text-ink-500 hover:bg-sand-100 disabled:opacity-30"><ArrowDown className="size-3.5" /></button>
+                  <button
+                    type="button"
+                    onClick={() => void remove(item.id)}
+                    aria-label={t.admin.delete}
+                    className="grid size-6 place-items-center rounded-md text-danger hover:bg-danger-soft"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                </div>
               </div>
               {item.credit && (
                 <p className="line-clamp-1 border-t border-sand-100 px-2 py-1 text-[0.625rem] text-ink-300">

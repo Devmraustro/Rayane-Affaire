@@ -4,8 +4,8 @@ import * as React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  LayoutDashboard, Building2, Car, Inbox, Users, CalendarCheck, CalendarDays, Wallet,
-  Settings, LogOut, Menu, X, ExternalLink, ChevronRight, ShieldCheck,
+  LayoutDashboard, Building2, Car, Inbox, Users, CalendarCheck, CalendarDays, Wallet, MapPin,
+  Settings, LogOut, Menu, X, ExternalLink, ChevronRight, ShieldCheck, UserCog, Bell, KeyRound,
 } from 'lucide-react';
 import type { AdminUser } from '@/types';
 import { useI18n } from '@/lib/i18n';
@@ -13,6 +13,7 @@ import { LanguageToggle } from '@/components/layout/language-toggle';
 import { Logo } from '@/components/layout/logo';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { placesText } from '@/lib/i18n/place-copy';
 
 /**
  * Admin shell.
@@ -41,12 +42,16 @@ export function AdminShell({
   const nav = [
     { href: '/admin', label: t.admin.nav.dashboard, icon: LayoutDashboard, exact: true },
     { href: '/admin/properties', label: t.admin.nav.properties, icon: Building2, badge: counts.drafts || undefined },
+    { href: '/admin/places', label: placesText(locale).nav, icon: MapPin },
     { href: '/admin/vehicles', label: t.admin.nav.vehicles, icon: Car },
     { href: '/admin/inquiries', label: t.admin.nav.inquiries, icon: Inbox, badge: counts.inquiries || undefined },
     { href: '/admin/customers', label: t.admin.nav.customers, icon: Users },
     { href: '/admin/reservations', label: t.admin.nav.reservations, icon: CalendarCheck },
     { href: '/admin/calendar', label: t.admin.nav.calendar, icon: CalendarDays },
     { href: '/admin/finances', label: t.admin.nav.finances, icon: Wallet },
+    ...(user.role === 'owner' ? [{ href: '/admin/users', label: locale === 'ar' ? 'المستخدمون' : 'Utilisateurs', icon: UserCog }] : []),
+    { href: '/admin/notifications', label: locale === 'ar' ? 'الإشعارات' : 'Notifications', icon: Bell },
+    { href: '/admin/password', label: locale === 'ar' ? 'كلمة المرور' : 'Mot de passe', icon: KeyRound },
     { href: '/admin/settings', label: t.admin.nav.settings, icon: Settings },
   ];
 

@@ -17,6 +17,17 @@ data/*.db
 data/*.db-wal
 data/*.db-shm
 data/uploads/
+data/e2e-uploads/
+data/preview-uploads/
+
+# Local preview credentials (never commit)
+.preview-env
+PREVIEW_ACCESS.txt
+
+# browser-test output (screenshots, traces, reports)
+artifacts/
+playwright-report/
+test-results/
 
 # env
 .env

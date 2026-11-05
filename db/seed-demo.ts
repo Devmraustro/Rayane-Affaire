@@ -8,8 +8,8 @@
  *  * every row is written with `is_demo = 1`;
  *  * the images are the branded SVG placeholders, never photographs of a real
  *    property or vehicle;
- *  * geo coordinates are either absent or explicitly `approximate` with a
- *    comment stating they are illustrative — never an invented street address;
+ *  * geo coordinates are always absent (`pending`): demonstration rows never
+ *    create map pins or imply the location of a real place;
  *  * titles/descriptions say "démonstration" / "تجريبي";
  *  * demo rows are excluded from every public statistic and from the homepage
  *    spotlight, and are badged on cards, detail pages and map popups;
@@ -66,9 +66,8 @@ interface DemoProperty {
 }
 
 /**
- * Illustrative positions only. Each is a real landmark/coordinate in the named
- * commune, used to demonstrate the map, and is flagged `approximate` so the UI
- * always states that it is not a surveyed address.
+ * Demonstration rows deliberately carry no coordinates. Commune centroids remain
+ * administrative reference data and are never copied into listing positions.
  */
 const PROPERTIES: DemoProperty[] = [
   {
@@ -85,9 +84,9 @@ const PROPERTIES: DemoProperty[] = [
     price: 45000,
     priceUnit: 'month',
     communeSlug: 'bejaia',
-    lat: 36.7512,
-    lng: 5.0567,
-    precision: 'commune',
+    lat: null,
+    lng: null,
+    precision: 'pending',
     surface: 82,
     bedrooms: 3,
     bathrooms: 1,
@@ -110,9 +109,9 @@ const PROPERTIES: DemoProperty[] = [
     price: 12000,
     priceUnit: 'night',
     communeSlug: 'tichy',
-    lat: 36.6689,
-    lng: 5.1574,
-    precision: 'approximate',
+    lat: null,
+    lng: null,
+    precision: 'pending',
     surface: 180,
     bedrooms: 4,
     bathrooms: 2,
@@ -135,9 +134,9 @@ const PROPERTIES: DemoProperty[] = [
     price: 4500,
     priceUnit: 'night',
     communeSlug: 'el-kseur',
-    lat: 36.6794,
-    lng: 4.8524,
-    precision: 'commune',
+    lat: null,
+    lng: null,
+    precision: 'pending',
     surface: 34,
     bedrooms: 1,
     bathrooms: 1,
@@ -208,9 +207,9 @@ const PROPERTIES: DemoProperty[] = [
     price: 18500000,
     priceUnit: 'total',
     communeSlug: 'aokas',
-    lat: 36.6377,
-    lng: 5.2453,
-    precision: 'approximate',
+    lat: null,
+    lng: null,
+    precision: 'pending',
     surface: 110,
     bedrooms: 4,
     bathrooms: 2,

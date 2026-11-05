@@ -1,0 +1,2 @@
+import Link from 'next/link';
+export default function PlaceNotFound() { return <main className="container-page grid min-h-[60vh] place-items-center py-20 text-center"><div><h1 className="text-3xl">404</h1><p className="mt-3 text-ink-500">Lieu introuvable · المكان غير موجود</p><Link href="/places" className="mt-6 inline-flex rounded-full bg-ink-900 px-5 py-2.5 text-sm text-white">Retour aux lieux · العودة إلى الأماكن</Link></div></main>; }
