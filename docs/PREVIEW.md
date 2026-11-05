@@ -44,7 +44,7 @@ passe obligatoire ; il ne crée aucune annonce, aucun lieu et aucun client.
 
 `APP_ENV=preview` ajoute un bandeau visible et fait répondre `Disallow: /` à
 `robots.txt`. **Au 5 novembre 2026, le projet Vercel est créé mais aucun
- environnement applicatif ni déploiement n'a été validé** : aucune URL Vercel et
+environnement applicatif ni déploiement n'a été validé** : aucune URL Vercel et
 aucun identifiant Vercel actif ne sont remis. Les éventuels secrets futurs doivent
 être des variables chiffrées Vercel, jamais des valeurs Git.
 
